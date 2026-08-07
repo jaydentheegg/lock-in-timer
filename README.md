@@ -1,4 +1,12 @@
-# vinext-starter
+# wymcxvsure
+
+**Website:** [https://wymcxvsure.jaydentheegg.chatgpt.site](https://wymcxvsure.jaydentheegg.chatgpt.site)
+
+打开即用的横屏专注倒计时，配有环境音和随机弹出的实时提醒。
+
+---
+
+## Development
 
 A clean full-stack starter running on
 [vinext](https://github.com/cloudflare/vinext), with optional Cloudflare D1 and

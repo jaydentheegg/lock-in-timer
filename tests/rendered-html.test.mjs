@@ -13,20 +13,16 @@ async function render() {
   );
 }
 
-test("renders the wymcxvsure evidence system", async () => {
+test("renders only the focus countdown experience", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   const html = await response.text();
-  assert.match(html, /wymcxvsure/);
-  assert.match(html, /每日证据/);
-  assert.doesNotMatch(html, /早起点火|codex-preview|react-loading-skeleton/i);
+  assert.match(html, /专注倒计时/);
 
   const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
-  assert.match(page, /wymcxvsure-v1/);
-  assert.match(page, /\+20 XP/);
-  assert.match(page, /本周摘要/);
-  assert.match(page, /导出备份/);
-  assert.match(page, /导入会替换当前 wymcxvsure 数据/);
-  assert.match(page, /morningCheckedAt/);
-  assert.match(page, /xpAwarded/);
+  assert.match(page, /study-background\.m4v/);
+  assert.match(page, /study-audio\.m4a/);
+  assert.match(page, /别让自己昏过去/);
+  assert.match(page, /reminder-burst|screen-reminder/);
+  assert.doesNotMatch(page, /XP|证据墙|随身物件|设置/);
 });

@@ -1,0 +1,52 @@
+name: Deploy GitHub Pages
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - agent/landscape-study-mode
+    paths:
+      - "github-pages/**"
+      - "public/study-background.m4v"
+      - "public/study-audio.m4a"
+      - "public/empty-captions.vtt"
+      - "public/favicon.svg"
+      - ".github/workflows/pages.yml"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v6
+
+      - name: Assemble static site
+        run: |
+          mkdir _site
+          cp github-pages/index.html github-pages/styles.css github-pages/app.js _site/
+          cp public/study-background.m4v public/study-audio.m4a public/empty-captions.vtt public/favicon.svg _site/
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
