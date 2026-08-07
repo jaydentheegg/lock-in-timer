@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, useEffect, useState } from "react";
+import { ChangeEvent, useEffect, useRef, useState } from "react";
 
 type Quality = "认真" | "主动" | "克制" | "坚持" | "勇气";
 
@@ -35,6 +35,21 @@ const DEFAULT_REASONS: [string, string, string] = [
   "积累让我更自信、更有生活选择权的证据。",
 ];
 const DEFAULT_PHRASE = "今晚别让自己觉得混过去了。";
+const STUDY_DURATIONS = [25, 45, 60];
+const STUDY_REMINDERS = [
+  "别让自己昏过去。",
+  "抬头。回来。",
+  "先把眼前这一分钟守住。",
+  "你不是没状态，只是想逃一下。",
+  "把这一小段做完。",
+];
+
+type StudyReminder = {
+  id: number;
+  text: string;
+  x: number;
+  y: number;
+};
 
 function localISO(date = new Date()) {
   const year = date.getFullYear();
@@ -93,6 +108,12 @@ function countAwarded(records: Record<string, DailyEvidence>) {
   return Object.values(records).filter((record) => record.xpAwarded && record.evidence?.trim()).length;
 }
 
+function formatClock(seconds: number) {
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`;
+}
+
 export default function Home() {
   const [state, setState] = useState<AppState>({ schemaVersion: 1, profile: null, records: {}, totalXp: 0 });
   const [ready, setReady] = useState(false);
@@ -103,6 +124,15 @@ export default function Home() {
   const [evidenceDraft, setEvidenceDraft] = useState("");
   const [copied, setCopied] = useState(false);
   const [notice, setNotice] = useState("");
+  const [studyMinutes, setStudyMinutes] = useState(25);
+  const [studyOpen, setStudyOpen] = useState(false);
+  const [secondsLeft, setSecondsLeft] = useState(25 * 60);
+  const [isRunning, setIsRunning] = useState(false);
+  const [soundOn, setSoundOn] = useState(false);
+  const [activeReminder, setActiveReminder] = useState<StudyReminder | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const reminderIdRef = useRef(0);
   const today = localISO();
 
   useEffect(() => {
@@ -132,6 +162,46 @@ export default function Home() {
     if (!ready || !state.profile) return;
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }, [ready, state]);
+
+  useEffect(() => {
+    if (!studyOpen || !isRunning) return;
+    const timer = window.setTimeout(() => {
+      if (secondsLeft <= 1) {
+        setSecondsLeft(0);
+        setIsRunning(false);
+        videoRef.current?.pause();
+        audioRef.current?.pause();
+        setActiveReminder({ id: ++reminderIdRef.current, text: "这一段完成了。别急着加码。", x: 50, y: 44 });
+      } else {
+        setSecondsLeft(secondsLeft - 1);
+      }
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [studyOpen, isRunning, secondsLeft]);
+
+  useEffect(() => {
+    if (!studyOpen || !isRunning) return;
+    let hideTimer = 0;
+    const showReminder = () => {
+      const phrases = [state.profile?.cuePhrase || DEFAULT_PHRASE, ...STUDY_REMINDERS];
+      const text = phrases[Math.floor(Math.random() * phrases.length)];
+      setActiveReminder({
+        id: ++reminderIdRef.current,
+        text,
+        x: 20 + Math.round(Math.random() * 60),
+        y: 24 + Math.round(Math.random() * 48),
+      });
+      window.clearTimeout(hideTimer);
+      hideTimer = window.setTimeout(() => setActiveReminder(null), 5600);
+    };
+    const firstReminder = window.setTimeout(showReminder, 60000);
+    const recurringReminder = window.setInterval(showReminder, 90000);
+    return () => {
+      window.clearTimeout(firstReminder);
+      window.clearTimeout(hideTimer);
+      window.clearInterval(recurringReminder);
+    };
+  }, [studyOpen, isRunning, state.profile?.cuePhrase]);
 
   const todayRecord = state.records[today] ?? emptyRecord(today);
   const totalXp = state.totalXp;
@@ -268,6 +338,58 @@ export default function Home() {
     window.setTimeout(() => setCopied(false), 1800);
   };
 
+  const startStudy = () => {
+    setSecondsLeft(studyMinutes * 60);
+    setActiveReminder(null);
+    setStudyOpen(true);
+    setIsRunning(true);
+    window.setTimeout(() => {
+      if (videoRef.current) {
+        videoRef.current.currentTime = 0;
+        void videoRef.current.play();
+      }
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        if (soundOn) void audioRef.current.play();
+      }
+    }, 0);
+  };
+
+  const toggleStudy = () => {
+    if (secondsLeft === 0) setSecondsLeft(studyMinutes * 60);
+    setIsRunning((current) => {
+      const next = !current;
+      if (next) {
+        void videoRef.current?.play();
+        if (soundOn) void audioRef.current?.play();
+      } else {
+        videoRef.current?.pause();
+        audioRef.current?.pause();
+      }
+      return next;
+    });
+  };
+
+  const closeStudy = () => {
+    setStudyOpen(false);
+    setIsRunning(false);
+    setActiveReminder(null);
+    videoRef.current?.pause();
+    audioRef.current?.pause();
+  };
+
+  const toggleSound = () => {
+    const next = !soundOn;
+    setSoundOn(next);
+    if (next && isRunning) void audioRef.current?.play();
+    else audioRef.current?.pause();
+  };
+
+  const toggleFullscreen = async () => {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await document.documentElement.requestFullscreen();
+  };
+
   if (!ready) return <main className="loading">正在取回今天的理由。</main>;
 
   if (!state.profile) {
@@ -320,6 +442,7 @@ export default function Home() {
         <a href="#today" className="brand">wymcxvsure</a>
         <div className="top-actions">
           <span>LV.{String(level).padStart(2, "0")}</span>
+          <button onClick={startStudy}>开始学习</button>
           <button onClick={() => setSettingsOpen(true)}>设置</button>
         </div>
       </header>
@@ -330,6 +453,30 @@ export default function Home() {
         <div className="hero-foot">
           <p>摸到你的{state.profile.objectName}时，不用规划整天。做一个今晚愿意承认的动作。</p>
           <span>{todayRecord.xpAwarded ? "今日证据已留下" : "今天还没有证据"}</span>
+        </div>
+      </section>
+
+      <section className="study-launcher" aria-labelledby="study-launch-title">
+        <div>
+          <p className="eyebrow">LANDSCAPE FOCUS MODE</p>
+          <h2 id="study-launch-title">别等状态。<br />先进入画面。</h2>
+        </div>
+        <div className="study-launch-controls">
+          <span>选择这一段的长度</span>
+          <div role="group" aria-label="选择学习时长">
+            {STUDY_DURATIONS.map((minutes) => (
+              <button
+                key={minutes}
+                className={studyMinutes === minutes ? "selected" : ""}
+                onClick={() => setStudyMinutes(minutes)}
+                aria-pressed={studyMinutes === minutes}
+              >
+                {minutes} MIN
+              </button>
+            ))}
+          </div>
+          <button className="enter-study" onClick={startStudy}><span>开始学习</span><i>↗</i></button>
+          <small>视频会循环播放。提醒偶尔出现，不要求你立刻变得热血。</small>
         </div>
       </section>
 
@@ -475,6 +622,51 @@ export default function Home() {
         <span>wymcxvsure / {new Date().getFullYear()}</span>
         <strong>想法不计分。<br />做过的事才算。</strong>
       </footer>
+
+      {studyOpen && (
+        <section className="study-mode" aria-label="横屏学习倒计时">
+          <video
+            ref={videoRef}
+            className="study-video"
+            src="/study-background.m4v"
+            autoPlay
+            loop
+            playsInline
+            muted
+            preload="auto"
+          >
+            <track kind="captions" src="/empty-captions.vtt" srcLang="zh" label="无对白" default />
+          </video>
+          <audio ref={audioRef} src="/study-audio.m4a" loop preload="auto">
+            <track kind="captions" src="/empty-captions.vtt" srcLang="zh" label="无对白" default />
+          </audio>
+          <div className="study-shade" />
+          <header className="study-header">
+            <span aria-hidden="true" />
+            <button onClick={closeStudy} aria-label="退出学习模式">退出 ×</button>
+          </header>
+          <div className="study-clock" aria-live="off">
+            <strong>{formatClock(secondsLeft)}</strong>
+          </div>
+          <div className="study-controls">
+            <button className="study-primary" onClick={toggleStudy}>{isRunning ? "暂停" : secondsLeft === 0 ? "再来一段" : "继续"}</button>
+            <button onClick={toggleSound}>{soundOn ? "关闭环境音" : "打开环境音"}</button>
+            <button onClick={toggleFullscreen}>全屏</button>
+          </div>
+          <div className="study-progress" aria-hidden="true"><i style={{ width: `${((studyMinutes * 60 - secondsLeft) / (studyMinutes * 60)) * 100}%` }} /></div>
+          {activeReminder && (
+            <div
+              key={activeReminder.id}
+              className="screen-reminder"
+              style={{ left: `${activeReminder.x}%`, top: `${activeReminder.y}%` }}
+              role="status"
+            >
+              {activeReminder.text}
+            </div>
+          )}
+          <div className="portrait-hint">把设备横过来，画面会更完整。</div>
+        </section>
+      )}
 
       {settingsOpen && (
         <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setSettingsOpen(false); }}>

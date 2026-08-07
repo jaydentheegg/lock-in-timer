@@ -29,4 +29,9 @@ test("renders the wymcxvsure evidence system", async () => {
   assert.match(page, /导入会替换当前 wymcxvsure 数据/);
   assert.match(page, /morningCheckedAt/);
   assert.match(page, /xpAwarded/);
+  assert.match(page, /开始学习/);
+  assert.match(page, /study-background\.m4v/);
+  assert.match(page, /study-audio\.m4a/);
+  assert.match(page, /别让自己昏过去/);
+  assert.match(page, /formatClock/);
 });
