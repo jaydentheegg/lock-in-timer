@@ -32,11 +32,11 @@ const timing = {
   broadcastVisibleMs:3200,
   anomalyMinMs:240000,
   anomalyMaxMs:420000,
-  deepAnomalyMinMs:45000,
-  deepAnomalyMaxMs:90000,
+  deepAnomalyMinMs:4500,
+  deepAnomalyMaxMs:8500,
   anomalyVisibleMs:1800,
   milestoneVisibleMs:2600,
-  preview:{ firstBroadcastMs:3000, broadcastMinMs:4000, broadcastMaxMs:7000, anomalyMinMs:12000, anomalyMaxMs:18000, deepAnomalyMinMs:8000, deepAnomalyMaxMs:14000 },
+  preview:{ firstBroadcastMs:3000, broadcastMinMs:4000, broadcastMaxMs:7000, anomalyMinMs:12000, anomalyMaxMs:18000, deepAnomalyMinMs:3000, deepAnomalyMaxMs:5000 },
 };
 
 const focusPage = document.querySelector("#focusPage");
@@ -101,6 +101,7 @@ function render() {
   clock.dataset.clock = clockText;
   clock.dateTime = `PT${elapsedSeconds}S`;
   focusPage.dataset.phase = phase;
+  focusPage.dataset.started = String(started);
   phaseName.textContent = phase.toUpperCase();
   if (phase !== currentPhase) {
     currentPhase = phase;
@@ -208,7 +209,7 @@ function showAnomaly() {
   if (!started || document.hidden) return;
   if (!reducedMotion.matches) {
     const deepSignalMode = currentPhase === "deep" || currentPhase === "null" || currentPhase === "lock";
-    const availableAnomalies = deepSignalMode ? [anomalies[3],anomalies[3],anomalies[0]] : anomalies.filter((item) => item.kind !== "pixel-drop");
+    const availableAnomalies = deepSignalMode ? [anomalies[3]] : anomalies.filter((item) => item.kind !== "pixel-drop");
     const selected = availableAnomalies[Math.floor(Math.random() * availableAnomalies.length)];
     clearAnomaly();
     focusPage.dataset.anomaly = selected.kind;

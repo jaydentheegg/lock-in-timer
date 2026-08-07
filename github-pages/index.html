@@ -6,10 +6,10 @@
     <meta name="theme-color" content="#050606" />
     <title>专注计时器</title>
     <link rel="icon" href="./favicon.svg" />
-    <link rel="stylesheet" href="./styles.css?v=8" />
+    <link rel="stylesheet" href="./styles.css?v=9" />
   </head>
   <body>
-    <main id="focusPage" class="focus-page" aria-label="专注计时器" data-phase="link" data-anomaly="none">
+    <main id="focusPage" class="focus-page" aria-label="专注计时器" data-phase="link" data-anomaly="none" data-started="false">
       <video id="video" class="focus-video" src="./study-background.mp4" loop muted playsinline preload="auto">
         <track kind="captions" src="./empty-captions.vtt" srclang="zh" label="无对白" default />
       </video>
@@ -20,6 +20,7 @@
       <div class="phase-atmosphere" aria-hidden="true"></div>
       <div class="signal-bleed" aria-hidden="true"></div>
       <canvas id="pixelCanvas" class="pixel-canvas" aria-hidden="true"></canvas>
+      <div class="vertical-glitch" aria-hidden="true"></div>
 
       <div class="phase-indicator" aria-hidden="true"><span id="phaseName">LINK</span><i></i></div>
       <div id="previewIndicator" class="preview-indicator" hidden>PREVIEW // ACCELERATED</div>
@@ -46,6 +47,6 @@
       <div id="anomalyLabel" class="anomaly-label" aria-hidden="true"></div>
       <div class="portrait-hint">横过来。</div>
     </main>
-    <script src="./app.js?v=8"></script>
+    <script src="./app.js?v=9"></script>
   </body>
 </html>

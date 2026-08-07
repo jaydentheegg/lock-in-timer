@@ -161,7 +161,7 @@ export default function FocusPage() {
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       if (!reducedMotion) {
         const availableAnomalies = deepSignalMode
-          ? [ANOMALIES[3],ANOMALIES[3],ANOMALIES[0]]
+          ? [ANOMALIES[3]]
           : ANOMALIES.filter((item) => item.kind !== "pixel-drop");
         const selected = availableAnomalies[Math.floor(Math.random() * availableAnomalies.length)];
         setAnomaly({ ...selected, id: ++anomalyIdRef.current });
@@ -245,7 +245,7 @@ export default function FocusPage() {
   };
 
   return (
-    <main className="focus-page" aria-label="专注计时器" data-phase={phase} data-anomaly={anomaly?.kind ?? "none"}>
+    <main className="focus-page" aria-label="专注计时器" data-phase={phase} data-anomaly={anomaly?.kind ?? "none"} data-started={started}>
       <video ref={videoRef} className="focus-video" src="/study-background.mp4" loop muted playsInline preload="auto">
         <track kind="captions" src="/empty-captions.vtt" srcLang="zh" label="无对白" default />
       </video>
@@ -257,6 +257,7 @@ export default function FocusPage() {
       <div className="phase-atmosphere" aria-hidden="true" />
       <div className="signal-bleed" aria-hidden="true" />
       <canvas ref={pixelCanvasRef} className="pixel-canvas" aria-hidden="true" />
+      <div className="vertical-glitch" aria-hidden="true" />
 
       <div className="phase-indicator" aria-hidden="true"><span>{phase.toUpperCase()}</span><i /></div>
       {previewMode && <div className="preview-indicator">PREVIEW // ACCELERATED</div>}

@@ -31,7 +31,10 @@ test("renders the immersive focus experience",async () => {
   assert.match(page,/study-audio\.m4a/);
   assert.match(page,/data-phase/);
   assert.match(page,/data-anomaly/);
+  assert.match(page,/data-started/);
   assert.match(page,/pixelCanvasRef/);
+  assert.match(page,/vertical-glitch/);
+  assert.match(page,/deepSignalMode\s*\? \[ANOMALIES\[3\]\]/);
   assert.match(page,/drawImage/);
   assert.match(page,/visibilitychange/);
   assert.match(page,/preview.*events/is);
@@ -43,7 +46,7 @@ test("renders the immersive focus experience",async () => {
     assert.match(experience,new RegExp(token));
     assert.match(staticApp,new RegExp(token));
   }
-  for (const timing of ["600","1500","2700","4500","8000","18000","32000","240000","420000","45000","90000","3200","2600"]) {
+  for (const timing of ["600","1500","2700","4500","8000","18000","32000","240000","420000","8500","3200","2600"]) {
     assert.match(experience,new RegExp(timing));
     assert.match(staticApp,new RegExp(timing));
   }
@@ -64,7 +67,10 @@ test("renders the immersive focus experience",async () => {
   assert.match(styles,/memory-echo/);
   assert.match(styles,/signal-bleed/);
   assert.match(styles,/pixel-drop/);
-  assert.match(styles,/data-phase="deep"[^}]*data-anomaly="pixel-drop"/);
+  assert.match(styles,/vertical-glitch/);
+  assert.match(styles,/data-started="true"[^}]*vertical-glitch/);
+  assert.match(styles,/data-phase="deep"[^}]*focus-video\s*\{\s*opacity:0/);
+  assert.match(styles,/data-phase="deep"[^}]*\{\s*background:#000/);
   assert.match(styles,/prefers-reduced-motion/);
   assert.match(styles,/#e53430/);
   assert.match(styles,/#f2a21d/);
@@ -72,14 +78,20 @@ test("renders the immersive focus experience",async () => {
   assert.doesNotMatch(styles,/border-left/);
   assert.match(styles,/\.play-button\s*\{[^}]*background:transparent[^}]*clip-path:none/);
   assert.match(styles,/\.play-button::before,\.play-button::after\s*\{\s*display:none/);
+  assert.match(styles,/\.sound-button\s*\{[^}]*background:transparent[^}]*clip-path:none/);
+  assert.match(styles,/\.sound-button::before,\.sound-button::after\s*\{\s*display:none/);
   assert.match(styles,/\.focus-page\s*\{[^}]*brightness\(\.69\)[^}]*rgba\(231,49,40,\.12\)/);
   assert.doesNotMatch(styles,/data-phase="trace"\][^{]*\{[^}]*--video-filter/);
   assert.match(staticStyles,/phase-atmosphere/);
   assert.match(staticStyles,/pixel-canvas/);
+  assert.match(staticStyles,/vertical-glitch/);
+  assert.match(staticApp,/deepSignalMode \? \[anomalies\[3\]\]/);
 
   assert.match(staticPage,/data-phase="link"/);
+  assert.match(staticPage,/data-started="false"/);
   assert.match(staticPage,/pixelCanvas/);
-  assert.match(staticPage,/styles\.css\?v=8/);
-  assert.match(staticPage,/app\.js\?v=8/);
+  assert.match(staticPage,/vertical-glitch/);
+  assert.match(staticPage,/styles\.css\?v=9/);
+  assert.match(staticPage,/app\.js\?v=9/);
   assert.doesNotMatch(workflow,/agent\/immersive-focus-events/);
 });
