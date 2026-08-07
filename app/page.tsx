@@ -53,7 +53,7 @@ export default function FocusPage() {
         y: 22 + Math.round(Math.random() * 52),
       });
       window.clearTimeout(hideTimer);
-      hideTimer = window.setTimeout(() => setReminder(null), 5600);
+      hideTimer = window.setTimeout(() => setReminder(null), 3200);
     };
     const firstReminder = window.setTimeout(showReminder, 8000);
     const recurringReminder = window.setInterval(showReminder, 24000);
@@ -125,7 +125,7 @@ export default function FocusPage() {
       </div>
 
       {reminder && (
-        <div key={reminder.id} className="screen-reminder" data-reminder={reminder.text} style={{ left: `${reminder.x}%`, top: `${reminder.y}%` }} role="status">
+        <div key={reminder.id} className="screen-reminder show" data-reminder={reminder.text} style={{ left: `${reminder.x}%`, top: `${reminder.y}%` }} role="status">
           {reminder.text}
         </div>
       )}
