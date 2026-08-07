@@ -33,6 +33,17 @@ test("renders only the focus stopwatch experience", async () => {
   assert.match(styles, /QingKe Display/);
   assert.match(page, /cyber-control/);
   assert.match(page, /aria-pressed/);
+  assert.match(page, /data-clock/);
+  assert.match(page, /data-reminder/);
+  assert.match(page, /8000/);
+  assert.match(page, /24000/);
+  assert.match(styles, /clock-glitch-a/);
+  assert.match(styles, /clock-glitch-b/);
+  assert.match(styles, /subtitle-glitch-a/);
+  assert.match(styles, /subtitle-glitch-b/);
+  assert.doesNotMatch(styles, /90,224,255|73,219,255/);
+  assert.match(styles, /color:rgba\(245,237,222,\.5\)/);
+  assert.match(styles, /color:rgba\(250,237,218,\.5\)/);
   assert.match(styles, /white-space:nowrap/);
   assert.doesNotMatch(styles, /border-left/);
 });
