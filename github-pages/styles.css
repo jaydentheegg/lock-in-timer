@@ -44,3 +44,44 @@ button { color:inherit; cursor:pointer; }
 @media (orientation:portrait) { .focus-clock{font-size:22vw}.fullscreen-button{top:20px;right:20px}.playback-controls{bottom:66px}.portrait-hint{display:block;position:absolute;left:0;right:0;bottom:22px;text-align:center;color:rgba(183,173,159,.5);font-size:10px} }
 @media (prefers-reduced-motion:reduce) { .screen-reminder.show{animation:reminder-fade 3.2s ease both}.focus-clock,.focus-clock::before,.focus-clock::after,.screen-reminder::before,.screen-reminder::after{animation:none} }
 @keyframes reminder-fade { 0%,100%{opacity:0} 12%,62%{opacity:.72} }
+
+/* Immersive focus-event layer. Kept in parity with the React experience. */
+.focus-page { --video-filter:brightness(1) contrast(1.02) saturate(1); --phase-wash:rgba(194,116,31,.08); --phase-grain:.06; --phase-atmosphere:.12; }
+.focus-page[data-phase="trace"] { --video-filter:brightness(.96) contrast(1.08) saturate(1.08) sepia(.08); --phase-wash:rgba(222,57,42,.12); --phase-grain:.085; --phase-atmosphere:.22; }
+.focus-page[data-phase="deep"] { --video-filter:brightness(.86) contrast(1.16) saturate(.9) sepia(.1); --phase-wash:rgba(199,73,36,.14); --phase-grain:.11; --phase-atmosphere:.3; }
+.focus-page[data-phase="null"] { --video-filter:brightness(.75) contrast(1.25) saturate(.58) grayscale(.18); --phase-wash:rgba(82,79,71,.16); --phase-grain:.14; --phase-atmosphere:.38; }
+.focus-page[data-phase="lock"] { --video-filter:brightness(.69) contrast(1.34) saturate(.76) sepia(.06); --phase-wash:rgba(231,49,40,.12); --phase-grain:.17; --phase-atmosphere:.46; }
+.focus-video { z-index:-4; filter:var(--video-filter); transition:filter 2s ease; will-change:filter,transform; }
+.focus-shade { z-index:-3; }
+.phase-atmosphere { position:absolute; inset:-12%; z-index:-2; pointer-events:none; opacity:var(--phase-atmosphere); background:linear-gradient(110deg,transparent 10%,var(--phase-wash) 46%,transparent 68%),repeating-linear-gradient(0deg,transparent 0 24px,rgba(238,159,56,.08) 25px,transparent 27px); background-size:170% 100%,100% 180px; mix-blend-mode:screen; animation:phase-drift 14s linear infinite; transition:opacity 2s ease,background-color 2s ease; }
+.focus-page::after { opacity:var(--phase-grain); transition:opacity 2s ease; }
+.fullscreen-button { z-index:6; }
+.phase-indicator { position:absolute; z-index:4; top:30px; left:34px; display:flex; align-items:center; gap:10px; color:rgba(241,161,46,.68); font-family:"Tektur Display",sans-serif; font-size:11px; letter-spacing:.18em; pointer-events:none; }
+.phase-indicator i { display:block; width:32px; height:2px; background:currentColor; box-shadow:10px 0 0 rgba(229,52,48,.5); }
+.preview-indicator { position:absolute; z-index:4; top:52px; left:34px; color:rgba(229,52,48,.72); font-family:"Tektur Display",sans-serif; font-size:8px; letter-spacing:.14em; pointer-events:none; }
+.preview-indicator[hidden] { display:none; }
+.milestone-event { position:absolute; inset:0; z-index:9; display:grid; place-content:center; gap:16px; overflow:hidden; background:rgba(2,3,3,.34); text-align:center; opacity:0; visibility:hidden; pointer-events:none; }
+.milestone-event.show { animation:milestone-enter 2.6s steps(1,end) both; }
+.milestone-code { color:#e53430; font-family:"Wallpoet Display",sans-serif; font-size:clamp(72px,15vw,230px); line-height:.8; letter-spacing:.04em; text-shadow:18px 0 0 rgba(242,162,29,.48); }
+.milestone-event p { margin:0; color:#f2a21d; font-family:"QingKe Display","PingFang SC",sans-serif; font-size:clamp(22px,3vw,50px); letter-spacing:.14em; }
+.milestone-scan { position:absolute; inset:0; background:repeating-linear-gradient(0deg,transparent 0 13px,rgba(229,52,48,.2) 14px,transparent 16px); mix-blend-mode:screen; animation:milestone-scan 2.6s linear both; }
+.anomaly-label { position:absolute; z-index:10; right:4vw; bottom:12vh; color:#f2a21d; font-family:"Tektur Display",sans-serif; font-size:clamp(11px,1.4vw,22px); letter-spacing:.24em; text-shadow:-7px 0 0 #e53430; opacity:0; pointer-events:none; }
+.anomaly-label.show { animation:anomaly-label 1.8s steps(1,end) both; }
+.signal-bleed { position:absolute; inset:-20% -40%; z-index:7; opacity:0; pointer-events:none; background:repeating-linear-gradient(90deg,transparent 0 8%,rgba(229,52,48,.68) 8% 11%,transparent 11% 18%,rgba(242,162,29,.55) 18% 22%,transparent 22% 31%); mix-blend-mode:screen; }
+.pixel-canvas { position:absolute; z-index:8; left:8%; top:16%; width:84%; height:68%; opacity:0; image-rendering:pixelated; pointer-events:none; clip-path:polygon(0 8%,82% 8%,82% 0,100% 0,100% 84%,18% 84%,18% 100%,0 100%); filter:contrast(1.5) saturate(1.35); }
+.focus-page[data-anomaly="frame-loss"] .focus-video { animation:frame-loss 1.8s steps(1,end) both; }
+.focus-page[data-anomaly="memory-echo"] .focus-clock::before { animation:memory-echo-a 1.8s steps(1,end) both; }
+.focus-page[data-anomaly="memory-echo"] .focus-clock::after { animation:memory-echo-b 1.8s steps(1,end) both; }
+.focus-page[data-anomaly="signal-bleed"] .signal-bleed { animation:signal-bleed 1.8s steps(1,end) both; }
+.focus-page[data-anomaly="pixel-drop"] .pixel-canvas { animation:pixel-drop 1.8s steps(1,end) both; }
+@keyframes phase-drift { from{background-position:140% 0,0 0} to{background-position:-70% 0,0 180px} }
+@keyframes milestone-enter { 0%,100%{opacity:0;visibility:hidden} 5%{opacity:1;visibility:visible;transform:translateX(-14px);filter:contrast(2)} 9%,52%{opacity:1;visibility:visible;transform:translateX(0);filter:none} 57%{opacity:.78;transform:translateX(18px);clip-path:inset(18% 0 54% 0)} 62%{opacity:1;transform:translateX(-8px);clip-path:inset(57% 0 12% 0)} 70%{opacity:.9;transform:translateX(5px);clip-path:inset(33% 0 36% 0)} 78%{opacity:1;transform:translateX(0);clip-path:inset(0)} 88%{opacity:.35;visibility:visible} }
+@keyframes milestone-scan { 0%{transform:translateY(-100%)} 100%{transform:translateY(100%)} }
+@keyframes anomaly-label { 0%,100%{opacity:0} 8%,70%{opacity:.9} 16%{transform:translateX(-12px)} 23%{transform:translateX(8px)} 30%,70%{transform:translateX(0)} }
+@keyframes frame-loss { 0%,100%{transform:translate(0);clip-path:inset(0)} 12%{transform:translateY(-18px) scale(1.03);clip-path:inset(0 0 61% 0)} 22%{transform:translateY(13px) scale(1.02);clip-path:inset(42% 0 0 0)} 34%{transform:translateX(-9px) scale(1.025);clip-path:inset(19% 0 48% 0)} 48%{transform:translateX(11px) scale(1.02);clip-path:inset(67% 0 8% 0)} 66%{transform:translateY(-6px) scale(1.01);clip-path:inset(0)} }
+@keyframes memory-echo-a { 0%,100%{opacity:0;transform:translate(0)} 8%,72%{opacity:.95;transform:translate(-42px,4px);clip-path:inset(9% 0 58% 0)} 18%{transform:translate(29px,-5px);clip-path:inset(54% 0 14% 0)} 33%{transform:translate(-23px,2px);clip-path:inset(31% 0 38% 0)} 48%{transform:translate(36px,0);clip-path:inset(71% 0 4% 0)} }
+@keyframes memory-echo-b { 0%,100%{opacity:0;transform:translate(0)} 10%,74%{opacity:.9;transform:translate(38px,-3px);clip-path:inset(61% 0 9% 0)} 21%{transform:translate(-31px,5px);clip-path:inset(14% 0 63% 0)} 37%{transform:translate(25px,-2px);clip-path:inset(43% 0 27% 0)} 53%{transform:translate(-39px,1px);clip-path:inset(5% 0 76% 0)} }
+@keyframes signal-bleed { 0%,100%{opacity:0;transform:translateX(-36%)} 8%{opacity:.88} 17%{transform:translateX(-12%)} 38%{transform:translateX(8%)} 61%{transform:translateX(27%)} 78%{opacity:.72;transform:translateX(48%)} }
+@keyframes pixel-drop { 0%,100%{opacity:0;transform:translate(0) scale(.96)} 7%{opacity:.92;transform:translate(-18px,5px) scale(1.03)} 16%{transform:translate(13px,-4px) scale(.99);clip-path:inset(4% 0 58% 0)} 29%{transform:translate(-8px,2px);clip-path:inset(46% 0 18% 0)} 46%{transform:translate(16px,-2px);clip-path:inset(22% 0 39% 0)} 63%{opacity:.82;transform:translate(-11px,0);clip-path:inset(68% 0 5% 0)} 76%{opacity:.7;clip-path:inset(0)} }
+@keyframes milestone-fade { 0%,100%{opacity:0} 15%,72%{opacity:1} }
+@media (prefers-reduced-motion:reduce) { .phase-atmosphere,.milestone-scan{animation:none}.milestone-event.show{animation:milestone-fade 2.6s ease both}.signal-bleed,.pixel-canvas,.anomaly-label{display:none}.focus-page[data-anomaly] .focus-video{animation:none} }
