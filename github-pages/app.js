@@ -23,6 +23,7 @@ const formatClock = (seconds) => `${String(Math.floor(seconds / 60)).padStart(2,
 
 function render() {
   clock.textContent = formatClock(elapsedSeconds);
+  clock.dataset.clock = formatClock(elapsedSeconds);
   clock.dateTime = `PT${elapsedSeconds}S`;
   playButton.dataset.running = String(running);
   playButton.classList.toggle("is-active", running);
@@ -36,6 +37,7 @@ function render() {
 
 function showReminder(text = reminders[Math.floor(Math.random() * reminders.length)]) {
   reminder.textContent = text;
+  reminder.dataset.reminder = text;
   reminder.style.left = `${28 + Math.round(Math.random() * 44)}%`;
   reminder.style.top = `${22 + Math.round(Math.random() * 52)}%`;
   reminder.classList.remove("show");
@@ -49,8 +51,8 @@ window.setInterval(() => {
   render();
 }, 1000);
 
-window.setTimeout(() => { if (started) showReminder(); }, 18000);
-window.setInterval(() => { if (started) showReminder(); }, 52000);
+window.setTimeout(() => { if (started) showReminder(); }, 8000);
+window.setInterval(() => { if (started) showReminder(); }, 24000);
 
 playButton.addEventListener("click", () => {
   if (!started) {

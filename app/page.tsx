@@ -55,8 +55,8 @@ export default function FocusPage() {
       window.clearTimeout(hideTimer);
       hideTimer = window.setTimeout(() => setReminder(null), 5600);
     };
-    const firstReminder = window.setTimeout(showReminder, 18000);
-    const recurringReminder = window.setInterval(showReminder, 52000);
+    const firstReminder = window.setTimeout(showReminder, 8000);
+    const recurringReminder = window.setInterval(showReminder, 24000);
     return () => {
       window.clearTimeout(firstReminder);
       window.clearTimeout(hideTimer);
@@ -100,7 +100,7 @@ export default function FocusPage() {
 
       <button className="fullscreen-button" onClick={toggleFullscreen}>全屏</button>
 
-      <time className="focus-clock" dateTime={`PT${elapsedSeconds}S`}>{formatClock(elapsedSeconds)}</time>
+      <time className="focus-clock" dateTime={`PT${elapsedSeconds}S`} data-clock={formatClock(elapsedSeconds)}>{formatClock(elapsedSeconds)}</time>
 
       <div className="playback-controls">
         <button className={`play-button cyber-control${running ? " is-active" : ""}`} onClick={togglePlayback} aria-label={running ? "暂停计时" : started ? "继续计时" : "开始计时"} aria-pressed={running}>
@@ -125,7 +125,7 @@ export default function FocusPage() {
       </div>
 
       {reminder && (
-        <div key={reminder.id} className="screen-reminder" style={{ left: `${reminder.x}%`, top: `${reminder.y}%` }} role="status">
+        <div key={reminder.id} className="screen-reminder" data-reminder={reminder.text} style={{ left: `${reminder.x}%`, top: `${reminder.y}%` }} role="status">
           {reminder.text}
         </div>
       )}
