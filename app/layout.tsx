@@ -6,15 +6,15 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-    title: "wymcxvsure｜学习倒计时与每日证据",
-    description: "进入横屏学习画面，用倒计时守住眼前这一小段，再留下一条真实行动证据。",
+    title: "专注倒计时",
+    description: "打开即进入横屏倒计时、环境音与实时提醒。",
     icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
     openGraph: {
-      title: "wymcxvsure",
-      description: "别等状态，先进入画面。",
+      title: "专注倒计时",
+      description: "别让自己昏过去。",
       type: "website",
     },
-    twitter: { card: "summary", title: "wymcxvsure", description: "别等状态，先进入画面。" },
+    twitter: { card: "summary", title: "专注倒计时", description: "别让自己昏过去。" },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

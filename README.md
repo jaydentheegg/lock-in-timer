@@ -2,7 +2,7 @@
 
 **Website:** [https://wymcxvsure.jaydentheegg.chatgpt.site](https://wymcxvsure.jaydentheegg.chatgpt.site)
 
-随身锚点、横屏学习倒计时与每日证据系统。
+打开即用的横屏专注倒计时，配有环境音和随机弹出的实时提醒。
 
 ---
 
