@@ -18,6 +18,7 @@ let elapsedSeconds = 0;
 let started = false;
 let running = false;
 let soundOn = true;
+let reminderHideTimer = 0;
 
 const formatClock = (seconds) => `${String(Math.floor(seconds / 60)).padStart(2,"0")}:${String(seconds % 60).padStart(2,"0")}`;
 
@@ -43,6 +44,12 @@ function showReminder(text = reminders[Math.floor(Math.random() * reminders.leng
   reminder.classList.remove("show");
   void reminder.offsetWidth;
   reminder.classList.add("show");
+  window.clearTimeout(reminderHideTimer);
+  reminderHideTimer = window.setTimeout(() => {
+    reminder.classList.remove("show");
+    reminder.textContent = "";
+    reminder.removeAttribute("data-reminder");
+  }, 3200);
 }
 
 window.setInterval(() => {
