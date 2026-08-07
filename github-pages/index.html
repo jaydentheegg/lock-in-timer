@@ -4,13 +4,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <meta name="theme-color" content="#050606" />
-    <title>专注倒计时</title>
+    <title>专注计时器</title>
     <link rel="icon" href="./favicon.svg" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="focus-page" aria-label="专注倒计时">
-      <video id="video" class="focus-video" src="./study-background.m4v" autoplay loop muted playsinline preload="auto">
+    <main class="focus-page" aria-label="专注计时器">
+      <video id="video" class="focus-video" src="./study-background.mp4" loop muted playsinline preload="auto">
         <track kind="captions" src="./empty-captions.vtt" srclang="zh" label="无对白" default />
       </video>
       <audio id="audio" src="./study-audio.m4a" loop preload="auto">
@@ -18,21 +18,14 @@
       </audio>
       <div class="focus-shade" aria-hidden="true"></div>
 
-      <div class="duration-picker" role="group" aria-label="选择倒计时时长">
-        <button class="selected" data-minutes="25" aria-pressed="true">25</button>
-        <button data-minutes="45" aria-pressed="false">45</button>
-        <button data-minutes="60" aria-pressed="false">60</button>
-      </div>
-
       <button id="fullscreen" class="fullscreen-button">全屏</button>
-      <time id="clock" class="focus-clock" datetime="PT1500S">25:00</time>
+      <time id="clock" class="focus-clock" datetime="PT0S">00:00</time>
 
       <div class="playback-controls">
-        <button id="play" class="play-button" aria-label="暂停">Ⅱ</button>
-        <button id="sound" class="sound-button">声音：关</button>
+        <button id="play" class="play-button" aria-label="播放">▶</button>
+        <button id="sound" class="sound-button">声音：开</button>
       </div>
 
-      <div class="focus-progress" aria-hidden="true"><i id="progress"></i></div>
       <div id="reminder" class="screen-reminder" role="status" aria-live="polite"></div>
       <div class="portrait-hint">横过来。</div>
     </main>

@@ -2,7 +2,7 @@
 
 **Website:** [https://jaydentheegg.github.io/wymcxvsure/](https://jaydentheegg.github.io/wymcxvsure/)
 
-打开即用的横屏专注倒计时，配有环境音和随机弹出的实时提醒。
+按下播放后开始的横屏专注正计时器，配有高清画面、默认开启的环境音和随机弹出的实时提醒。
 
 ---
 

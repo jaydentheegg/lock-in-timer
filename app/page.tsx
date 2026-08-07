@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 
-const DURATIONS = [25, 45, 60];
 const REMINDERS = [
   "别让自己昏过去。",
   "抬头。回来。",
@@ -26,43 +25,31 @@ function formatClock(seconds: number) {
 }
 
 export default function FocusPage() {
-  const [duration, setDuration] = useState(25);
-  const [secondsLeft, setSecondsLeft] = useState(25 * 60);
-  const [running, setRunning] = useState(true);
-  const [soundOn, setSoundOn] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [started, setStarted] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [soundOn, setSoundOn] = useState(true);
   const [reminder, setReminder] = useState<Reminder | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const reminderIdRef = useRef(0);
 
   useEffect(() => {
-    void videoRef.current?.play();
-  }, []);
-
-  useEffect(() => {
     if (!running) return;
     const timer = window.setTimeout(() => {
-      if (secondsLeft <= 1) {
-        setSecondsLeft(0);
-        setRunning(false);
-        videoRef.current?.pause();
-        audioRef.current?.pause();
-        setReminder({ id: ++reminderIdRef.current, text: "这一段完成了。", x: 50, y: 44 });
-      } else {
-        setSecondsLeft(secondsLeft - 1);
-      }
+      setElapsedSeconds(elapsedSeconds + 1);
     }, 1000);
     return () => window.clearTimeout(timer);
-  }, [running, secondsLeft]);
+  }, [running, elapsedSeconds]);
 
   useEffect(() => {
-    if (!running) return;
+    if (!started) return;
     let hideTimer = 0;
     const showReminder = () => {
       setReminder({
         id: ++reminderIdRef.current,
         text: REMINDERS[Math.floor(Math.random() * REMINDERS.length)],
-        x: 18 + Math.round(Math.random() * 64),
+        x: 28 + Math.round(Math.random() * 44),
         y: 22 + Math.round(Math.random() * 52),
       });
       window.clearTimeout(hideTimer);
@@ -75,41 +62,23 @@ export default function FocusPage() {
       window.clearTimeout(hideTimer);
       window.clearInterval(recurringReminder);
     };
-  }, [running]);
-
-  const selectDuration = (minutes: number) => {
-    setDuration(minutes);
-    setSecondsLeft(minutes * 60);
-    setReminder(null);
-    setRunning(true);
-    if (videoRef.current) {
-      videoRef.current.currentTime = 0;
-      void videoRef.current.play();
-    }
-    if (audioRef.current) {
-      audioRef.current.currentTime = 0;
-      if (soundOn) void audioRef.current.play();
-    }
-  };
+  }, [started]);
 
   const togglePlayback = () => {
-    if (running) {
-      setRunning(false);
-      videoRef.current?.pause();
-      audioRef.current?.pause();
+    if (!started) {
+      setStarted(true);
+      setRunning(true);
+      void videoRef.current?.play();
+      if (soundOn) void audioRef.current?.play();
       return;
     }
-    if (secondsLeft === 0) setSecondsLeft(duration * 60);
-    setReminder(null);
-    setRunning(true);
-    void videoRef.current?.play();
-    if (soundOn) void audioRef.current?.play();
+    setRunning((current) => !current);
   };
 
   const toggleSound = () => {
     const next = !soundOn;
     setSoundOn(next);
-    if (next && running) void audioRef.current?.play();
+    if (next && started) void audioRef.current?.play();
     else audioRef.current?.pause();
   };
 
@@ -118,11 +87,9 @@ export default function FocusPage() {
     else await document.documentElement.requestFullscreen();
   };
 
-  const elapsedPercent = ((duration * 60 - secondsLeft) / (duration * 60)) * 100;
-
   return (
-    <main className="focus-page" aria-label="专注倒计时">
-      <video ref={videoRef} className="focus-video" src="/study-background.m4v" autoPlay loop muted playsInline preload="auto">
+    <main className="focus-page" aria-label="专注计时器">
+      <video ref={videoRef} className="focus-video" src="/study-background.mp4" loop muted playsInline preload="auto">
         <track kind="captions" src="/empty-captions.vtt" srcLang="zh" label="无对白" default />
       </video>
       <audio ref={audioRef} src="/study-audio.m4a" loop preload="auto">
@@ -131,24 +98,14 @@ export default function FocusPage() {
 
       <div className="focus-shade" aria-hidden="true" />
 
-      <div className="duration-picker" role="group" aria-label="选择倒计时时长">
-        {DURATIONS.map((minutes) => (
-          <button key={minutes} className={duration === minutes ? "selected" : ""} onClick={() => selectDuration(minutes)} aria-pressed={duration === minutes}>
-            {minutes}
-          </button>
-        ))}
-      </div>
-
       <button className="fullscreen-button" onClick={toggleFullscreen}>全屏</button>
 
-      <time className="focus-clock" dateTime={`PT${secondsLeft}S`}>{formatClock(secondsLeft)}</time>
+      <time className="focus-clock" dateTime={`PT${elapsedSeconds}S`}>{formatClock(elapsedSeconds)}</time>
 
       <div className="playback-controls">
-        <button className="play-button" onClick={togglePlayback} aria-label={running ? "暂停" : "播放"}>{running ? "Ⅱ" : "▶"}</button>
+        <button className="play-button" onClick={togglePlayback} aria-label={running ? "暂停计时" : started ? "继续计时" : "开始计时"}>{running ? "Ⅱ" : "▶"}</button>
         <button className="sound-button" onClick={toggleSound}>{soundOn ? "声音：开" : "声音：关"}</button>
       </div>
-
-      <div className="focus-progress" aria-hidden="true"><i style={{ width: `${elapsedPercent}%` }} /></div>
 
       {reminder && (
         <div key={reminder.id} className="screen-reminder" style={{ left: `${reminder.x}%`, top: `${reminder.y}%` }} role="status">
