@@ -29,6 +29,7 @@ test("renders only the focus stopwatch experience", async () => {
   assert.doesNotMatch(page, /DURATIONS|secondsLeft|XP|证据墙|随身物件|设置/);
 
   const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  const staticPage = await readFile(new URL("../github-pages/index.html", import.meta.url), "utf8");
   assert.match(styles, /Tektur Display/);
   assert.match(styles, /QingKe Display/);
   assert.match(styles, /Wallpoet Display/);
@@ -51,4 +52,6 @@ test("renders only the focus stopwatch experience", async () => {
   assert.match(styles, /mask-image:repeating-linear-gradient/);
   assert.match(styles, /white-space:nowrap/);
   assert.doesNotMatch(styles, /border-left/);
+  assert.match(staticPage, /styles\.css\?v=6/);
+  assert.match(staticPage, /app\.js\?v=6/);
 });
