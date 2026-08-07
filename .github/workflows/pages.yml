@@ -8,7 +8,7 @@ on:
       - agent/landscape-study-mode
     paths:
       - "github-pages/**"
-      - "public/study-background.m4v"
+      - "public/study-background.mp4"
       - "public/study-audio.m4a"
       - "public/empty-captions.vtt"
       - "public/favicon.svg"
@@ -40,7 +40,7 @@ jobs:
         run: |
           mkdir _site
           cp github-pages/index.html github-pages/styles.css github-pages/app.js _site/
-          cp public/study-background.m4v public/study-audio.m4a public/empty-captions.vtt public/favicon.svg _site/
+          cp public/study-background.mp4 public/study-audio.m4a public/empty-captions.vtt public/favicon.svg _site/
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5

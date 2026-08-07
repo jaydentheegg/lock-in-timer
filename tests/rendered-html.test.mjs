@@ -13,16 +13,18 @@ async function render() {
   );
 }
 
-test("renders only the focus countdown experience", async () => {
+test("renders only the focus stopwatch experience", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   const html = await response.text();
-  assert.match(html, /专注倒计时/);
+  assert.match(html, /专注计时器/);
 
   const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
-  assert.match(page, /study-background\.m4v/);
+  assert.match(page, /study-background\.mp4/);
   assert.match(page, /study-audio\.m4a/);
   assert.match(page, /别让自己昏过去/);
   assert.match(page, /reminder-burst|screen-reminder/);
-  assert.doesNotMatch(page, /XP|证据墙|随身物件|设置/);
+  assert.match(page, /elapsedSeconds/);
+  assert.match(page, /started/);
+  assert.doesNotMatch(page, /DURATIONS|secondsLeft|XP|证据墙|随身物件|设置/);
 });
