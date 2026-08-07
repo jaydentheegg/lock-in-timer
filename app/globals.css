@@ -1,3 +1,6 @@
+@font-face { font-family:"Tektur Display"; src:url("/fonts/Tektur-Variable.ttf") format("truetype"); font-style:normal; font-weight:400 900; font-display:swap; }
+@font-face { font-family:"QingKe Display"; src:url("/fonts/ZCOOLQingKeHuangYou-Regular.ttf") format("truetype"); font-style:normal; font-weight:400; font-display:swap; }
+
 :root { color-scheme:dark; }
 * { box-sizing:border-box; }
 html,body { width:100%; height:100%; margin:0; overflow:hidden; background:#050606; }
@@ -10,14 +13,20 @@ button { color:inherit; cursor:pointer; }
 .focus-page::after { content:""; position:absolute; inset:0; z-index:-1; pointer-events:none; opacity:.06; background:repeating-linear-gradient(0deg,rgba(255,255,255,.025) 0,rgba(255,255,255,.025) 1px,transparent 1px,transparent 4px); }
 .fullscreen-button { position:absolute; top:28px; right:34px; height:38px; padding:0 14px; border:1px solid rgba(255,255,255,.32); background:rgba(5,6,6,.25); color:#e9dfcf; backdrop-filter:blur(12px); font-size:10px; }
 
-.focus-clock { position:absolute; inset:0; display:grid; place-items:center; padding-bottom:3vh; font:400 clamp(118px,21vw,330px)/.8 Georgia,"Times New Roman",serif; letter-spacing:-.07em; font-variant-numeric:tabular-nums; text-shadow:0 5px 44px rgba(0,0,0,.62); }
+.focus-clock { position:absolute; inset:0; display:grid; place-items:center; padding-bottom:3vh; font-family:"Tektur Display","Arial Black",sans-serif; font-size:clamp(118px,21vw,330px); font-style:normal; font-weight:760; font-variation-settings:"wdth" 92,"wght" 760; line-height:.8; letter-spacing:-.035em; font-variant-numeric:tabular-nums; font-synthesis:none; text-shadow:0 5px 44px rgba(0,0,0,.62); }
 
 .playback-controls { position:absolute; z-index:4; left:50%; bottom:32px; transform:translateX(-50%); display:flex; align-items:center; gap:12px; }
-.playback-controls button { height:54px; border:1px solid rgba(255,255,255,.42); background:rgba(5,6,6,.4); color:#f4eadb; backdrop-filter:blur(15px); }
-.play-button { width:66px; border-color:#cf9947 !important; background:#cf9947 !important; color:#090a0a !important; font-size:18px; font-weight:800; }
-.sound-button { min-width:108px; padding:0 18px; font-size:10px; }
+.cyber-control { --control-accent:#e8dfd0; position:relative; display:grid; place-items:center; width:62px; height:54px; padding:0; border:0; isolation:isolate; overflow:hidden; background:linear-gradient(135deg,var(--control-accent),rgba(232,223,208,.28)); color:var(--control-accent); clip-path:polygon(11px 0,100% 0,100% calc(100% - 11px),calc(100% - 11px) 100%,0 100%,0 11px); backdrop-filter:blur(15px); transition:color .2s ease,filter .2s ease,transform .2s ease; }
+.cyber-control::before { content:""; position:absolute; inset:1px; z-index:-1; background:rgba(5,6,6,.72); clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px); }
+.cyber-control::after { content:""; position:absolute; right:5px; bottom:5px; width:8px; height:2px; background:currentColor; box-shadow:-11px 0 0 color-mix(in srgb,currentColor 45%,transparent); }
+.cyber-control:hover { filter:drop-shadow(0 0 10px color-mix(in srgb,var(--control-accent) 45%,transparent)); transform:translateY(-1px); }
+.cyber-control:focus-visible { outline:2px solid #fff4dd; outline-offset:4px; }
+.cyber-control.is-active { --control-accent:#f3a72f; color:#ffc866; }
+.play-button { width:68px; }
+.sound-button { width:62px; }
+.control-icon { position:relative; z-index:1; display:block; width:27px; height:27px; fill:currentColor; }
 
-.screen-reminder { position:absolute; z-index:5; width:max-content; max-width:92vw; padding:0; border:0; background:transparent; white-space:nowrap; color:#faedda; font-size:clamp(24px,4.4vw,72px); font-weight:670; line-height:1; letter-spacing:-.055em; text-shadow:0 4px 30px #000; transform:translate(-50%,-50%); pointer-events:none; animation:reminder-burst 5.6s cubic-bezier(.2,.75,.22,1) both; }
+.screen-reminder { position:absolute; z-index:5; width:max-content; max-width:92vw; padding:0; border:0; background:transparent; white-space:nowrap; color:#faedda; font-family:"QingKe Display","PingFang SC","Microsoft YaHei",sans-serif; font-size:clamp(24px,4.4vw,72px); font-style:normal; font-weight:400; line-height:1; letter-spacing:.06em; font-synthesis:none; text-shadow:0 4px 30px #000; transform:translate(-50%,-50%); pointer-events:none; animation:reminder-burst 5.6s cubic-bezier(.2,.75,.22,1) both; }
 .portrait-hint { display:none; }
 
 @keyframes reminder-burst {

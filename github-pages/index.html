@@ -22,8 +22,14 @@
       <time id="clock" class="focus-clock" datetime="PT0S">00:00</time>
 
       <div class="playback-controls">
-        <button id="play" class="play-button" aria-label="播放">▶</button>
-        <button id="sound" class="sound-button">声音：开</button>
+        <button id="play" class="play-button cyber-control" aria-label="开始计时" aria-pressed="false">
+          <svg class="control-icon icon-play" viewBox="0 0 32 32" aria-hidden="true"><path d="M8 4 27 16 8 28V4Zm5 8v8l7-4-7-4Z" fill-rule="evenodd" /></svg>
+          <svg class="control-icon icon-pause" viewBox="0 0 32 32" aria-hidden="true"><path d="M7 5h7v22H7zM18 5h7v22h-7z" /></svg>
+        </button>
+        <button id="sound" class="sound-button cyber-control is-active" aria-label="关闭声音" aria-pressed="true">
+          <svg class="control-icon icon-sound-on" viewBox="0 0 32 32" aria-hidden="true"><path d="M4 12h6l7-6v20l-7-6H4v-8Z" /><path d="M21 11c2.6 2.7 2.6 7.3 0 10M24.5 7.5c4.7 4.7 4.7 12.3 0 17" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" /></svg>
+          <svg class="control-icon icon-sound-off" viewBox="0 0 32 32" aria-hidden="true"><path d="M4 12h6l7-6v20l-7-6H4v-8Z" /><path d="m21 12 7 8m0-8-7 8" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="square" /></svg>
+        </button>
       </div>
 
       <div id="reminder" class="screen-reminder" role="status" aria-live="polite"></div>

@@ -27,4 +27,12 @@ test("renders only the focus stopwatch experience", async () => {
   assert.match(page, /elapsedSeconds/);
   assert.match(page, /started/);
   assert.doesNotMatch(page, /DURATIONS|secondsLeft|XP|证据墙|随身物件|设置/);
+
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(styles, /Tektur Display/);
+  assert.match(styles, /QingKe Display/);
+  assert.match(page, /cyber-control/);
+  assert.match(page, /aria-pressed/);
+  assert.match(styles, /white-space:nowrap/);
+  assert.doesNotMatch(styles, /border-left/);
 });

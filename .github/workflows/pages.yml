@@ -12,6 +12,7 @@ on:
       - "public/study-audio.m4a"
       - "public/empty-captions.vtt"
       - "public/favicon.svg"
+      - "public/fonts/**"
       - ".github/workflows/pages.yml"
 
 permissions:
@@ -41,6 +42,7 @@ jobs:
           mkdir _site
           cp github-pages/index.html github-pages/styles.css github-pages/app.js _site/
           cp public/study-background.mp4 public/study-audio.m4a public/empty-captions.vtt public/favicon.svg _site/
+          cp -R public/fonts _site/fonts
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5

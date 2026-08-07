@@ -103,8 +103,25 @@ export default function FocusPage() {
       <time className="focus-clock" dateTime={`PT${elapsedSeconds}S`}>{formatClock(elapsedSeconds)}</time>
 
       <div className="playback-controls">
-        <button className="play-button" onClick={togglePlayback} aria-label={running ? "暂停计时" : started ? "继续计时" : "开始计时"}>{running ? "Ⅱ" : "▶"}</button>
-        <button className="sound-button" onClick={toggleSound}>{soundOn ? "声音：开" : "声音：关"}</button>
+        <button className={`play-button cyber-control${running ? " is-active" : ""}`} onClick={togglePlayback} aria-label={running ? "暂停计时" : started ? "继续计时" : "开始计时"} aria-pressed={running}>
+          <svg className="control-icon" viewBox="0 0 32 32" aria-hidden="true">
+            {running ? (
+              <path d="M7 5h7v22H7zM18 5h7v22h-7z" />
+            ) : (
+              <path d="M8 4 27 16 8 28V4Zm5 8v8l7-4-7-4Z" fillRule="evenodd" />
+            )}
+          </svg>
+        </button>
+        <button className={`sound-button cyber-control${soundOn ? " is-active" : ""}`} onClick={toggleSound} aria-label={soundOn ? "关闭声音" : "打开声音"} aria-pressed={soundOn}>
+          <svg className="control-icon" viewBox="0 0 32 32" aria-hidden="true">
+            <path d="M4 12h6l7-6v20l-7-6H4v-8Z" />
+            {soundOn ? (
+              <path d="M21 11c2.6 2.7 2.6 7.3 0 10M24.5 7.5c4.7 4.7 4.7 12.3 0 17" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square" />
+            ) : (
+              <path d="m21 12 7 8m0-8-7 8" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square" />
+            )}
+          </svg>
+        </button>
       </div>
 
       {reminder && (

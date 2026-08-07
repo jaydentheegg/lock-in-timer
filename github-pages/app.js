@@ -24,9 +24,14 @@ const formatClock = (seconds) => `${String(Math.floor(seconds / 60)).padStart(2,
 function render() {
   clock.textContent = formatClock(elapsedSeconds);
   clock.dateTime = `PT${elapsedSeconds}S`;
-  playButton.textContent = running ? "Ⅱ" : "▶";
-  playButton.setAttribute("aria-label", running ? "暂停" : "播放");
-  soundButton.textContent = soundOn ? "声音：开" : "声音：关";
+  playButton.dataset.running = String(running);
+  playButton.classList.toggle("is-active", running);
+  playButton.setAttribute("aria-label", running ? "暂停计时" : started ? "继续计时" : "开始计时");
+  playButton.setAttribute("aria-pressed", String(running));
+  soundButton.dataset.sound = soundOn ? "on" : "off";
+  soundButton.classList.toggle("is-active", soundOn);
+  soundButton.setAttribute("aria-label", soundOn ? "关闭声音" : "打开声音");
+  soundButton.setAttribute("aria-pressed", String(soundOn));
 }
 
 function showReminder(text = reminders[Math.floor(Math.random() * reminders.length)]) {
