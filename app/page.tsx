@@ -142,8 +142,13 @@ export default function FocusPage() {
     let scheduleTimer = 0;
     let hideTimer = 0;
     let disposed = false;
-    const minimumDelay = previewMode ? EXPERIENCE_TIMING.preview.anomalyMinMs : EXPERIENCE_TIMING.anomalyMinMs;
-    const maximumDelay = previewMode ? EXPERIENCE_TIMING.preview.anomalyMaxMs : EXPERIENCE_TIMING.anomalyMaxMs;
+    const deepSignalMode = phase === "deep" || phase === "null" || phase === "lock";
+    const minimumDelay = previewMode
+      ? deepSignalMode ? EXPERIENCE_TIMING.preview.deepAnomalyMinMs : EXPERIENCE_TIMING.preview.anomalyMinMs
+      : deepSignalMode ? EXPERIENCE_TIMING.deepAnomalyMinMs : EXPERIENCE_TIMING.anomalyMinMs;
+    const maximumDelay = previewMode
+      ? deepSignalMode ? EXPERIENCE_TIMING.preview.deepAnomalyMaxMs : EXPERIENCE_TIMING.preview.anomalyMaxMs
+      : deepSignalMode ? EXPERIENCE_TIMING.deepAnomalyMaxMs : EXPERIENCE_TIMING.anomalyMaxMs;
 
     const schedule = () => {
       window.clearTimeout(scheduleTimer);
@@ -155,7 +160,10 @@ export default function FocusPage() {
       if (disposed || document.hidden) return;
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       if (!reducedMotion) {
-        const selected = ANOMALIES[Math.floor(Math.random() * ANOMALIES.length)];
+        const availableAnomalies = deepSignalMode
+          ? [ANOMALIES[3],ANOMALIES[3],ANOMALIES[0]]
+          : ANOMALIES.filter((item) => item.kind !== "pixel-drop");
+        const selected = availableAnomalies[Math.floor(Math.random() * availableAnomalies.length)];
         setAnomaly({ ...selected, id: ++anomalyIdRef.current });
         window.clearTimeout(hideTimer);
         hideTimer = window.setTimeout(() => setAnomaly(null), EXPERIENCE_TIMING.anomalyVisibleMs);
@@ -181,7 +189,7 @@ export default function FocusPage() {
       window.clearTimeout(hideTimer);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, [previewMode, started]);
+  }, [phase, previewMode, started]);
 
   useEffect(() => {
     if (anomaly?.kind !== "pixel-drop") return;
@@ -275,20 +283,20 @@ export default function FocusPage() {
       </div>
 
       {broadcast && (
-        <div key={broadcast.id} className="screen-reminder show" data-reminder={broadcast.text} style={{ left: `${broadcast.x}%`, top: `${broadcast.y}%` }} role="status">
+        <div key={`broadcast-${broadcast.id}`} className="screen-reminder show" data-reminder={broadcast.text} style={{ left: `${broadcast.x}%`, top: `${broadcast.y}%` }} role="status">
           {broadcast.text}
         </div>
       )}
 
       {milestone && (
-        <section key={milestone.id} className="milestone-event show" role="status" aria-live="polite">
+        <section key={`milestone-${milestone.id}`} className="milestone-event show" role="status" aria-live="polite">
           <div className="milestone-code">{milestone.code}</div>
           <p>{milestone.message}</p>
           <div className="milestone-scan" aria-hidden="true" />
         </section>
       )}
 
-      {anomaly && <div key={anomaly.id} className="anomaly-label show" aria-hidden="true">{anomaly.label}</div>}
+      {anomaly && <div key={`anomaly-${anomaly.id}`} className="anomaly-label show" aria-hidden="true">{anomaly.label}</div>}
       <div className="portrait-hint">横过来。</div>
     </main>
   );

@@ -23,7 +23,9 @@ button { color:inherit; cursor:pointer; }
 .cyber-control:hover { filter:drop-shadow(0 0 10px color-mix(in srgb,var(--control-accent) 45%,transparent)); transform:translateY(-1px); }
 .cyber-control:focus-visible { outline:2px solid #fff4dd; outline-offset:4px; }
 .cyber-control.is-active { --control-accent:#f3a72f; color:#ffc866; }
-.play-button { width:68px; }
+.play-button { width:54px; height:54px; overflow:visible; background:transparent; color:rgba(232,223,208,.82); clip-path:none; backdrop-filter:none; }
+.play-button::before,.play-button::after { display:none; }
+.play-button.is-active { color:#ffc866; }
 .sound-button { width:62px; }
 .control-icon { position:relative; z-index:1; display:block; width:27px; height:27px; fill:currentColor; }
 .icon-pause,.icon-sound-off { display:none; }
@@ -46,11 +48,11 @@ button { color:inherit; cursor:pointer; }
 @keyframes reminder-fade { 0%,100%{opacity:0} 12%,62%{opacity:.72} }
 
 /* Immersive focus-event layer. Kept in parity with the React experience. */
-.focus-page { --video-filter:brightness(1) contrast(1.02) saturate(1); --phase-wash:rgba(194,116,31,.08); --phase-grain:.06; --phase-atmosphere:.12; }
-.focus-page[data-phase="trace"] { --video-filter:brightness(.96) contrast(1.08) saturate(1.08) sepia(.08); --phase-wash:rgba(222,57,42,.12); --phase-grain:.085; --phase-atmosphere:.22; }
-.focus-page[data-phase="deep"] { --video-filter:brightness(.86) contrast(1.16) saturate(.9) sepia(.1); --phase-wash:rgba(199,73,36,.14); --phase-grain:.11; --phase-atmosphere:.3; }
-.focus-page[data-phase="null"] { --video-filter:brightness(.75) contrast(1.25) saturate(.58) grayscale(.18); --phase-wash:rgba(82,79,71,.16); --phase-grain:.14; --phase-atmosphere:.38; }
-.focus-page[data-phase="lock"] { --video-filter:brightness(.69) contrast(1.34) saturate(.76) sepia(.06); --phase-wash:rgba(231,49,40,.12); --phase-grain:.17; --phase-atmosphere:.46; }
+.focus-page { --video-filter:brightness(.69) contrast(1.34) saturate(.76) sepia(.06); --phase-wash:rgba(231,49,40,.12); --phase-grain:.06; --phase-atmosphere:.46; }
+.focus-page[data-phase="trace"] { --phase-grain:.085; }
+.focus-page[data-phase="deep"] { --phase-grain:.11; }
+.focus-page[data-phase="null"] { --phase-grain:.14; }
+.focus-page[data-phase="lock"] { --phase-grain:.17; }
 .focus-video { z-index:-4; filter:var(--video-filter); transition:filter 2s ease; will-change:filter,transform; }
 .focus-shade { z-index:-3; }
 .phase-atmosphere { position:absolute; inset:-12%; z-index:-2; pointer-events:none; opacity:var(--phase-atmosphere); background:linear-gradient(110deg,transparent 10%,var(--phase-wash) 46%,transparent 68%),repeating-linear-gradient(0deg,transparent 0 24px,rgba(238,159,56,.08) 25px,transparent 27px); background-size:170% 100%,100% 180px; mix-blend-mode:screen; animation:phase-drift 14s linear infinite; transition:opacity 2s ease,background-color 2s ease; }
@@ -74,6 +76,8 @@ button { color:inherit; cursor:pointer; }
 .focus-page[data-anomaly="memory-echo"] .focus-clock::after { animation:memory-echo-b 1.8s steps(1,end) both; }
 .focus-page[data-anomaly="signal-bleed"] .signal-bleed { animation:signal-bleed 1.8s steps(1,end) both; }
 .focus-page[data-anomaly="pixel-drop"] .pixel-canvas { animation:pixel-drop 1.8s steps(1,end) both; }
+.focus-page:is([data-phase="deep"],[data-phase="null"],[data-phase="lock"])[data-anomaly="pixel-drop"] .focus-video { opacity:0; transition:opacity .08s steps(1,end),filter 2s ease; }
+.focus-page:is([data-phase="deep"],[data-phase="null"],[data-phase="lock"])[data-anomaly="pixel-drop"] .pixel-canvas { left:0; top:0; width:100%; height:100%; }
 @keyframes phase-drift { from{background-position:140% 0,0 0} to{background-position:-70% 0,0 180px} }
 @keyframes milestone-enter { 0%,100%{opacity:0;visibility:hidden} 5%{opacity:1;visibility:visible;transform:translateX(-14px);filter:contrast(2)} 9%,52%{opacity:1;visibility:visible;transform:translateX(0);filter:none} 57%{opacity:.78;transform:translateX(18px);clip-path:inset(18% 0 54% 0)} 62%{opacity:1;transform:translateX(-8px);clip-path:inset(57% 0 12% 0)} 70%{opacity:.9;transform:translateX(5px);clip-path:inset(33% 0 36% 0)} 78%{opacity:1;transform:translateX(0);clip-path:inset(0)} 88%{opacity:.35;visibility:visible} }
 @keyframes milestone-scan { 0%{transform:translateY(-100%)} 100%{transform:translateY(100%)} }

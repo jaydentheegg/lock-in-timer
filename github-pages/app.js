@@ -32,9 +32,11 @@ const timing = {
   broadcastVisibleMs:3200,
   anomalyMinMs:240000,
   anomalyMaxMs:420000,
+  deepAnomalyMinMs:45000,
+  deepAnomalyMaxMs:90000,
   anomalyVisibleMs:1800,
   milestoneVisibleMs:2600,
-  preview:{ firstBroadcastMs:3000, broadcastMinMs:4000, broadcastMaxMs:7000, anomalyMinMs:12000, anomalyMaxMs:18000 },
+  preview:{ firstBroadcastMs:3000, broadcastMinMs:4000, broadcastMaxMs:7000, anomalyMinMs:12000, anomalyMaxMs:18000, deepAnomalyMinMs:8000, deepAnomalyMaxMs:14000 },
 };
 
 const focusPage = document.querySelector("#focusPage");
@@ -67,6 +69,7 @@ let anomalyScheduleTimer = 0;
 let anomalyHideTimer = 0;
 let milestoneHideTimer = 0;
 let pixelAnimationFrame = 0;
+let currentPhase = "link";
 const firedMilestones = new Set();
 
 const formatClock = (seconds) => `${String(Math.floor(seconds / 60)).padStart(2,"0")}:${String(seconds % 60).padStart(2,"0")}`;
@@ -99,6 +102,10 @@ function render() {
   clock.dateTime = `PT${elapsedSeconds}S`;
   focusPage.dataset.phase = phase;
   phaseName.textContent = phase.toUpperCase();
+  if (phase !== currentPhase) {
+    currentPhase = phase;
+    if (started) scheduleAnomaly();
+  }
   playButton.dataset.running = String(running);
   playButton.classList.toggle("is-active",running);
   playButton.setAttribute("aria-label",running ? "暂停计时" : started ? "继续计时" : "开始计时");
@@ -200,7 +207,9 @@ function clearAnomaly() {
 function showAnomaly() {
   if (!started || document.hidden) return;
   if (!reducedMotion.matches) {
-    const selected = anomalies[Math.floor(Math.random() * anomalies.length)];
+    const deepSignalMode = currentPhase === "deep" || currentPhase === "null" || currentPhase === "lock";
+    const availableAnomalies = deepSignalMode ? [anomalies[3],anomalies[3],anomalies[0]] : anomalies.filter((item) => item.kind !== "pixel-drop");
+    const selected = availableAnomalies[Math.floor(Math.random() * availableAnomalies.length)];
     clearAnomaly();
     focusPage.dataset.anomaly = selected.kind;
     anomalyLabel.textContent = selected.label;
@@ -216,8 +225,13 @@ function showAnomaly() {
 function scheduleAnomaly() {
   window.clearTimeout(anomalyScheduleTimer);
   if (!started || document.hidden) return;
-  const minimum = previewMode ? timing.preview.anomalyMinMs : timing.anomalyMinMs;
-  const maximum = previewMode ? timing.preview.anomalyMaxMs : timing.anomalyMaxMs;
+  const deepSignalMode = currentPhase === "deep" || currentPhase === "null" || currentPhase === "lock";
+  const minimum = previewMode
+    ? deepSignalMode ? timing.preview.deepAnomalyMinMs : timing.preview.anomalyMinMs
+    : deepSignalMode ? timing.deepAnomalyMinMs : timing.anomalyMinMs;
+  const maximum = previewMode
+    ? deepSignalMode ? timing.preview.deepAnomalyMaxMs : timing.preview.anomalyMaxMs
+    : deepSignalMode ? timing.deepAnomalyMaxMs : timing.anomalyMaxMs;
   anomalyScheduleTimer = window.setTimeout(showAnomaly,randomBetween(minimum,maximum));
 }
 

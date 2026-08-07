@@ -50,6 +50,8 @@ export const EXPERIENCE_TIMING = {
   broadcastVisibleMs: 3200,
   anomalyMinMs: 240000,
   anomalyMaxMs: 420000,
+  deepAnomalyMinMs: 45000,
+  deepAnomalyMaxMs: 90000,
   anomalyVisibleMs: 1800,
   milestoneVisibleMs: 2600,
   preview: {
@@ -58,6 +60,8 @@ export const EXPERIENCE_TIMING = {
     broadcastMaxMs: 7000,
     anomalyMinMs: 12000,
     anomalyMaxMs: 18000,
+    deepAnomalyMinMs: 8000,
+    deepAnomalyMaxMs: 14000,
   },
 } as const;
 
