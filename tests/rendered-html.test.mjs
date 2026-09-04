@@ -1,97 +1,52 @@
-import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
-import test from "node:test";
+import assert from 'node:assert/strict';
+import {readFile} from 'node:fs/promises';
+import test from 'node:test';
+import {createSessionClock,phaseAt} from '../lib/focus-engine.js';
+import {focusMarkup} from '../lib/focus-markup.js';
 
-async function render() {
-  const workerUrl = new URL("../dist/server/index.js",import.meta.url);
-  workerUrl.searchParams.set("test",`${process.pid}-${Date.now()}`);
-  const { default:worker } = await import(workerUrl.href);
-  return worker.fetch(
-    new Request("http://localhost/",{ headers:{ accept:"text/html" } }),
-    { ASSETS:{ fetch:async () => new Response("Not found",{ status:404 }) } },
-    { waitUntil(){}, passThroughOnException(){} },
-  );
-}
-
-test("renders the immersive focus experience",async () => {
-  const response = await render();
+test('elapsed time survives delayed updates and excludes paused time',()=>{
+  let now=0;
+  const clock=createSessionClock(()=>now);
+  assert.equal(clock.seconds(),0);
+  clock.resume(); now=12345;
+  assert.equal(clock.seconds(),12);
+  clock.pause(); now+=100000;
+  assert.equal(clock.seconds(),12);
+  clock.resume(); now+=655;
+  assert.equal(clock.seconds(),13);
+  clock.pause(); clock.pause();
+  clock.reset();
+  assert.equal(clock.seconds(),0); assert.equal(clock.running,false);
+});
+test('resume is idempotent and background time is counted only while running',()=>{
+  let now=0; const clock=createSessionClock(()=>now);
+  clock.resume(); now=1000; clock.resume(); now=1500000;
+  assert.equal(clock.seconds(),1500);
+  assert.equal(phaseAt(clock.seconds()),2);
+});
+test('normal and accelerated phases switch at the exact boundaries',()=>{
+  for(const [preview,boundaries] of [[false,[600,1500,2700,4500]],[true,[10,25,45,75]]]){
+    assert.equal(phaseAt(0,preview),0);
+    boundaries.forEach((seconds,index)=>{
+      assert.equal(phaseAt(seconds-1,preview),index);
+      assert.equal(phaseAt(seconds,preview),index+1);
+    });
+    assert.equal(phaseAt(999999,preview),4);
+  }
+});
+test('Pages receives the same markup, runtime and styles as React',async()=>{
+  const read=path=>readFile(new URL('../'+path,import.meta.url),'utf8');
+  const [html,css,staticCss,engine,staticEngine]=await Promise.all([read('github-pages/index.html'),read('app/globals.css'),read('github-pages/styles.css'),read('lib/focus-engine.js'),read('github-pages/app.js')]);
+  assert.ok(html.includes(focusMarkup));
+  assert.equal(staticCss,css.replaceAll("url('/fonts/","url('./fonts/"));
+  assert.ok(staticEngine.startsWith(engine));
+});
+test('built page serves the complete focus interface',async()=>{
+  const {default:worker}=await import('../dist/server/index.js');
+  const response=await worker.fetch(new Request('http://localhost/',{headers:{accept:'text/html'}}),{ASSETS:{fetch:async()=>new Response('Not found',{status:404})}},{waitUntil(){},passThroughOnException(){}});
   assert.equal(response.status,200);
-  const html = await response.text();
-  assert.match(html,/专注计时器/);
-
-  const page = await readFile(new URL("../app/page.tsx",import.meta.url),"utf8");
-  const styles = await readFile(new URL("../app/globals.css",import.meta.url),"utf8");
-  const experience = await readFile(new URL("../lib/experience.ts",import.meta.url),"utf8");
-  const staticPage = await readFile(new URL("../github-pages/index.html",import.meta.url),"utf8");
-  const staticApp = await readFile(new URL("../github-pages/app.js",import.meta.url),"utf8");
-  const staticStyles = await readFile(new URL("../github-pages/styles.css",import.meta.url),"utf8");
-  const workflow = await readFile(new URL("../.github/workflows/pages.yml",import.meta.url),"utf8");
-
-  assert.match(page,/study-background\.mp4/);
-  assert.match(page,/study-audio\.m4a/);
-  assert.match(page,/data-phase/);
-  assert.match(page,/data-anomaly/);
-  assert.match(page,/data-started/);
-  assert.match(page,/pixelCanvasRef/);
-  assert.match(page,/vertical-glitch/);
-  assert.match(page,/deepSignalMode\s*\? \[ANOMALIES\[3\]\]/);
-  assert.match(page,/drawImage/);
-  assert.match(page,/visibilitychange/);
-  assert.match(page,/preview.*events/is);
-  assert.match(page,/cyber-control/);
-  assert.match(page,/aria-pressed/);
-  assert.doesNotMatch(page,/DURATIONS|secondsLeft|\bXP\b|证据墙|随身物件|设置|localStorage/);
-
-  for (const token of ["link","trace","deep","null","lock","FRAME LOSS","MEMORY ECHO","SIGNAL BLEED","PIXEL DROP"]) {
-    assert.match(experience,new RegExp(token));
-    assert.match(staticApp,new RegExp(token));
-  }
-  for (const timing of ["600","1500","2700","4500","8000","18000","32000","240000","420000","8500","3200","2600"]) {
-    assert.match(experience,new RegExp(timing));
-    assert.match(staticApp,new RegExp(timing));
-  }
-  for (const previewSecond of ["previewSeconds: 10","previewSeconds: 25","previewSeconds: 45","previewSeconds: 75"]) {
-    assert.match(experience,new RegExp(previewSecond));
-  }
-  assert.match(experience,/别让自己昏过去/);
-  assert.match(experience,/有人比你更早到达这里/);
-  assert.match(staticApp,/broadcastDeck/);
-  assert.match(staticApp,/document\.hidden/);
-  assert.match(staticApp,/stopPixelDrop/);
-  assert.doesNotMatch(staticApp,/localStorage/);
-
-  assert.match(styles,/Wallpoet Display/);
-  assert.match(styles,/phase-atmosphere/);
-  assert.match(styles,/milestone-enter/);
-  assert.match(styles,/frame-loss/);
-  assert.match(styles,/memory-echo/);
-  assert.match(styles,/signal-bleed/);
-  assert.match(styles,/pixel-drop/);
-  assert.match(styles,/vertical-glitch/);
-  assert.match(styles,/data-started="true"[^}]*vertical-glitch/);
-  assert.match(styles,/data-phase="deep"[^}]*focus-video\s*\{\s*opacity:0/);
-  assert.match(styles,/data-phase="deep"[^}]*\{\s*background:#000/);
-  assert.match(styles,/prefers-reduced-motion/);
-  assert.match(styles,/#e53430/);
-  assert.match(styles,/#f2a21d/);
-  assert.match(styles,/white-space:nowrap/);
-  assert.doesNotMatch(styles,/border-left/);
-  assert.match(styles,/\.play-button\s*\{[^}]*background:transparent[^}]*clip-path:none/);
-  assert.match(styles,/\.play-button::before,\.play-button::after\s*\{\s*display:none/);
-  assert.match(styles,/\.sound-button\s*\{[^}]*background:transparent[^}]*clip-path:none/);
-  assert.match(styles,/\.sound-button::before,\.sound-button::after\s*\{\s*display:none/);
-  assert.match(styles,/\.focus-page\s*\{[^}]*brightness\(\.69\)[^}]*rgba\(231,49,40,\.12\)/);
-  assert.doesNotMatch(styles,/data-phase="trace"\][^{]*\{[^}]*--video-filter/);
-  assert.match(staticStyles,/phase-atmosphere/);
-  assert.match(staticStyles,/pixel-canvas/);
-  assert.match(staticStyles,/vertical-glitch/);
-  assert.match(staticApp,/deepSignalMode \? \[anomalies\[3\]\]/);
-
-  assert.match(staticPage,/data-phase="link"/);
-  assert.match(staticPage,/data-started="false"/);
-  assert.match(staticPage,/pixelCanvas/);
-  assert.match(staticPage,/vertical-glitch/);
-  assert.match(staticPage,/styles\.css\?v=9/);
-  assert.match(staticPage,/app\.js\?v=9/);
-  assert.doesNotMatch(workflow,/agent\/immersive-focus-events/);
+  const html=await response.text();
+  assert.ok(html.includes('aria-label="开始计时"'));
+  assert.ok(html.includes('aria-label="重置计时"'));
+  assert.ok(html.includes('study-poster.jpg'));
 });

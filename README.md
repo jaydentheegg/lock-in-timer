@@ -6,6 +6,10 @@
 
 快捷键：`空格` 开始 / 暂停、`R` 重置、`M` 静音、`F` 全屏。
 
+加速预览：[10 / 25 / 45 / 75 秒切换阶段](https://jaydentheegg.github.io/wymcxvsure/?preview=events)。正式模式对应分钟；25 分钟后背景归黑，局部视频马赛克闪现。暂停仅冻结计时，背景音与环境效果继续。
+
+界面来自 `lib/focus-markup.js`，交互来自 `lib/focus-engine.js`，样式来自 `app/globals.css`。React 和 GitHub Pages 共用这三份源文件。`npm run build` 会自动同步 `github-pages/`，请勿直接修改生成文件。画面只在短暂故障期间采样，减少动态效果的系统设置会关闭故障与扫描动画。
+
 ---
 
 ## Development
@@ -101,7 +105,7 @@ actions tied to the current ChatGPT user. Leave public content anonymous.
 
 - `npm run dev`: start local development
 - `npm run build`: verify the vinext build output
-- `npm test`: build the starter and verify its rendered loading skeleton
+- `npm test`: build, verify timing/phase boundaries, and check React/Pages parity
 - `npm run db:generate`: generate Drizzle migrations after schema changes
 
 ## Learn More
