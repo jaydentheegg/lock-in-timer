@@ -18,25 +18,21 @@ const broadcasts = [
   "归档损坏：你曾经完成过这一段。",
 ];
 
-const anomalies = [
-  { kind:"frame-loss", label:"FRAME LOSS" },
-  { kind:"memory-echo", label:"MEMORY ECHO" },
-  { kind:"signal-bleed", label:"SIGNAL BLEED" },
-  { kind:"pixel-drop", label:"PIXEL DROP" },
-];
+// Anomalies fire on phase turnover only. Below DEEP the footage is still
+// visible enough to tear; past it only the clock is left to glitch.
+const anomalies = {
+  surface:{ kind:"frame-loss", label:"FRAME LOSS" },
+  deep:{ kind:"memory-echo", label:"MEMORY ECHO" },
+};
 
 const timing = {
-  firstBroadcastMs:8000,
-  broadcastMinMs:18000,
-  broadcastMaxMs:32000,
-  broadcastVisibleMs:3200,
-  anomalyMinMs:240000,
-  anomalyMaxMs:420000,
-  deepAnomalyMinMs:4500,
-  deepAnomalyMaxMs:8500,
-  anomalyVisibleMs:1800,
-  milestoneVisibleMs:2600,
-  preview:{ firstBroadcastMs:3000, broadcastMinMs:4000, broadcastMaxMs:7000, anomalyMinMs:12000, anomalyMaxMs:18000, deepAnomalyMinMs:3000, deepAnomalyMaxMs:5000 },
+  firstBroadcastMs:45000,
+  broadcastMinMs:360000,
+  broadcastMaxMs:660000,
+  broadcastVisibleMs:4400,
+  anomalyVisibleMs:1600,
+  milestoneVisibleMs:3000,
+  preview:{ firstBroadcastMs:3000, broadcastMinMs:5000, broadcastMaxMs:9000 },
 };
 
 const focusPage = document.querySelector("#focusPage");
@@ -45,14 +41,16 @@ const audio = document.querySelector("#audio");
 const clock = document.querySelector("#clock");
 const playButton = document.querySelector("#play");
 const soundButton = document.querySelector("#sound");
+const resetButton = document.querySelector("#reset");
+const fullscreenButton = document.querySelector("#fullscreen");
 const reminder = document.querySelector("#reminder");
 const phaseName = document.querySelector("#phaseName");
+const phaseRail = document.querySelector("#phaseRail");
 const previewIndicator = document.querySelector("#previewIndicator");
 const milestoneElement = document.querySelector("#milestone");
 const milestoneCode = document.querySelector("#milestoneCode");
 const milestoneMessage = document.querySelector("#milestoneMessage");
 const anomalyLabel = document.querySelector("#anomalyLabel");
-const pixelCanvas = document.querySelector("#pixelCanvas");
 
 const previewMode = new URLSearchParams(window.location.search).get("preview") === "events";
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -65,10 +63,8 @@ let soundOn = true;
 let broadcastDeck = [];
 let broadcastScheduleTimer = 0;
 let broadcastHideTimer = 0;
-let anomalyScheduleTimer = 0;
 let anomalyHideTimer = 0;
 let milestoneHideTimer = 0;
-let pixelAnimationFrame = 0;
 let currentPhase = "link";
 const firedMilestones = new Set();
 
@@ -94,6 +90,12 @@ function getPhase(seconds) {
   return phase;
 }
 
+// One rail that fills once, across the whole session, to LOCK.
+function getProgress(seconds) {
+  const total = getThreshold(milestones[milestones.length - 1]);
+  return Math.min(seconds / total,1);
+}
+
 function render() {
   const clockText = formatClock(elapsedSeconds);
   const phase = getPhase(elapsedSeconds);
@@ -102,11 +104,9 @@ function render() {
   clock.dateTime = `PT${elapsedSeconds}S`;
   focusPage.dataset.phase = phase;
   focusPage.dataset.started = String(started);
+  focusPage.style.setProperty("--progress",getProgress(elapsedSeconds).toFixed(4));
   phaseName.textContent = phase.toUpperCase();
-  if (phase !== currentPhase) {
-    currentPhase = phase;
-    if (started) scheduleAnomaly();
-  }
+  currentPhase = phase;
   playButton.dataset.running = String(running);
   playButton.classList.toggle("is-active",running);
   playButton.setAttribute("aria-label",running ? "暂停计时" : started ? "继续计时" : "开始计时");
@@ -115,12 +115,12 @@ function render() {
   soundButton.classList.toggle("is-active",soundOn);
   soundButton.setAttribute("aria-label",soundOn ? "关闭声音" : "打开声音");
   soundButton.setAttribute("aria-pressed",String(soundOn));
+  resetButton.disabled = !started;
 }
 
 function clearBroadcast() {
   reminder.classList.remove("show");
   reminder.textContent = "";
-  reminder.removeAttribute("data-reminder");
 }
 
 function nextBroadcast() {
@@ -130,11 +130,9 @@ function nextBroadcast() {
 
 function showBroadcast() {
   if (!started || document.hidden) return;
-  const text = nextBroadcast();
-  reminder.textContent = text;
-  reminder.dataset.reminder = text;
-  reminder.style.left = `${28 + Math.round(Math.random() * 44)}%`;
-  reminder.style.top = `${22 + Math.round(Math.random() * 52)}%`;
+  reminder.textContent = nextBroadcast();
+  reminder.style.left = `${30 + Math.round(Math.random() * 40)}%`;
+  reminder.style.top = `${26 + Math.round(Math.random() * 44)}%`;
   reminder.classList.remove("show");
   void reminder.offsetWidth;
   reminder.classList.add("show");
@@ -151,14 +149,38 @@ function scheduleBroadcast(delay) {
   broadcastScheduleTimer = window.setTimeout(showBroadcast,delay ?? randomBetween(minimum,maximum));
 }
 
+function clearAnomaly() {
+  focusPage.dataset.anomaly = "none";
+  anomalyLabel.classList.remove("show");
+  anomalyLabel.textContent = "";
+}
+
+function showAnomaly() {
+  if (!started || document.hidden || reducedMotion.matches) return;
+  const selected = currentPhase === "link" || currentPhase === "trace" ? anomalies.surface : anomalies.deep;
+  clearAnomaly();
+  void anomalyLabel.offsetWidth;
+  focusPage.dataset.anomaly = selected.kind;
+  anomalyLabel.textContent = selected.label;
+  anomalyLabel.classList.add("show");
+  window.clearTimeout(anomalyHideTimer);
+  anomalyHideTimer = window.setTimeout(clearAnomaly,timing.anomalyVisibleMs);
+}
+
+function hideMilestone() {
+  milestoneElement.classList.remove("show");
+  focusPage.classList.remove("milestone-open");
+}
+
 function showMilestone(item) {
   milestoneCode.textContent = item.code;
   milestoneMessage.textContent = item.message;
   milestoneElement.classList.remove("show");
   void milestoneElement.offsetWidth;
   milestoneElement.classList.add("show");
+  focusPage.classList.add("milestone-open");
   window.clearTimeout(milestoneHideTimer);
-  milestoneHideTimer = window.setTimeout(() => milestoneElement.classList.remove("show"),timing.milestoneVisibleMs);
+  milestoneHideTimer = window.setTimeout(hideMilestone,timing.milestoneVisibleMs);
 }
 
 function checkMilestones() {
@@ -166,80 +188,61 @@ function checkMilestones() {
   for (const item of milestones) {
     if (elapsedSeconds >= getThreshold(item) && !firedMilestones.has(item.code)) {
       firedMilestones.add(item.code);
+      currentPhase = item.phase;
       showMilestone(item);
+      showAnomaly();
     }
   }
 }
 
-function stopPixelDrop() {
-  window.cancelAnimationFrame(pixelAnimationFrame);
-  const context = pixelCanvas.getContext("2d");
-  context?.clearRect(0,0,pixelCanvas.width,pixelCanvas.height);
+function clearAllTimers() {
+  window.clearTimeout(broadcastScheduleTimer);
+  window.clearTimeout(broadcastHideTimer);
+  window.clearTimeout(anomalyHideTimer);
+  window.clearTimeout(milestoneHideTimer);
 }
 
-function startPixelDrop() {
-  const context = pixelCanvas.getContext("2d",{ alpha:false });
-  if (!context) return;
-  pixelCanvas.width = 96;
-  pixelCanvas.height = 54;
-  let lastDraw = 0;
-  const draw = (now) => {
-    if (now - lastDraw > 80 && video.readyState >= 2) {
-      try {
-        context.drawImage(video,0,0,pixelCanvas.width,pixelCanvas.height);
-      } catch {
-        context.fillStyle = "#171816";
-        context.fillRect(0,0,pixelCanvas.width,pixelCanvas.height);
-      }
-      lastDraw = now;
-    }
-    pixelAnimationFrame = window.requestAnimationFrame(draw);
-  };
-  pixelAnimationFrame = window.requestAnimationFrame(draw);
+function start() {
+  started = true;
+  running = true;
+  void video.play();
+  if (soundOn) void audio.play();
+  scheduleBroadcast(previewMode ? timing.preview.firstBroadcastMs : timing.firstBroadcastMs);
 }
 
-function clearAnomaly() {
-  stopPixelDrop();
-  focusPage.dataset.anomaly = "none";
-  anomalyLabel.classList.remove("show");
-  anomalyLabel.textContent = "";
+function togglePlay() {
+  if (!started) start();
+  else running = !running;
+  render();
 }
 
-function showAnomaly() {
-  if (!started || document.hidden) return;
-  if (!reducedMotion.matches) {
-    const deepSignalMode = currentPhase === "deep" || currentPhase === "null" || currentPhase === "lock";
-    const availableAnomalies = deepSignalMode ? [anomalies[3]] : anomalies.filter((item) => item.kind !== "pixel-drop");
-    const selected = availableAnomalies[Math.floor(Math.random() * availableAnomalies.length)];
-    clearAnomaly();
-    focusPage.dataset.anomaly = selected.kind;
-    anomalyLabel.textContent = selected.label;
-    void anomalyLabel.offsetWidth;
-    anomalyLabel.classList.add("show");
-    if (selected.kind === "pixel-drop") startPixelDrop();
-    window.clearTimeout(anomalyHideTimer);
-    anomalyHideTimer = window.setTimeout(clearAnomaly,timing.anomalyVisibleMs);
-  }
-  scheduleAnomaly();
+function toggleSound() {
+  soundOn = !soundOn;
+  if (soundOn && started) void audio.play();
+  else audio.pause();
+  render();
 }
 
-function scheduleAnomaly() {
-  window.clearTimeout(anomalyScheduleTimer);
-  if (!started || document.hidden) return;
-  const deepSignalMode = currentPhase === "deep" || currentPhase === "null" || currentPhase === "lock";
-  const minimum = previewMode
-    ? deepSignalMode ? timing.preview.deepAnomalyMinMs : timing.preview.anomalyMinMs
-    : deepSignalMode ? timing.deepAnomalyMinMs : timing.anomalyMinMs;
-  const maximum = previewMode
-    ? deepSignalMode ? timing.preview.deepAnomalyMaxMs : timing.preview.anomalyMaxMs
-    : deepSignalMode ? timing.deepAnomalyMaxMs : timing.anomalyMaxMs;
-  anomalyScheduleTimer = window.setTimeout(showAnomaly,randomBetween(minimum,maximum));
+function reset() {
+  clearAllTimers();
+  clearBroadcast();
+  clearAnomaly();
+  hideMilestone();
+  firedMilestones.clear();
+  started = false;
+  running = false;
+  elapsedSeconds = 0;
+  currentPhase = "link";
+  video.pause();
+  video.currentTime = 0;
+  audio.pause();
+  audio.currentTime = 0;
+  render();
 }
 
-function startExperience() {
-  const firstDelay = previewMode ? timing.preview.firstBroadcastMs : timing.firstBroadcastMs;
-  scheduleBroadcast(firstDelay);
-  scheduleAnomaly();
+async function toggleFullscreen() {
+  if (document.fullscreenElement) await document.exitFullscreen();
+  else await document.documentElement.requestFullscreen();
 }
 
 window.setInterval(() => {
@@ -251,7 +254,6 @@ window.setInterval(() => {
 
 document.addEventListener("visibilitychange",() => {
   window.clearTimeout(broadcastScheduleTimer);
-  window.clearTimeout(anomalyScheduleTimer);
   if (!started) return;
   if (document.hidden) {
     window.clearTimeout(broadcastHideTimer);
@@ -260,42 +262,26 @@ document.addEventListener("visibilitychange",() => {
     clearAnomaly();
   } else {
     scheduleBroadcast();
-    scheduleAnomaly();
   }
 });
 
-playButton.addEventListener("click",() => {
-  if (!started) {
-    started = true;
-    running = true;
-    void video.play();
-    if (soundOn) void audio.play();
-    startExperience();
-  } else {
-    running = !running;
-  }
-  render();
+playButton.addEventListener("click",togglePlay);
+soundButton.addEventListener("click",toggleSound);
+resetButton.addEventListener("click",reset);
+fullscreenButton.addEventListener("click",toggleFullscreen);
+
+document.addEventListener("keydown",(event) => {
+  if (event.metaKey || event.ctrlKey || event.altKey) return;
+  // Let a focused button handle its own Space/Enter activation.
+  const isSpace = event.key === " " || event.code === "Space";
+  if (document.activeElement instanceof HTMLButtonElement && (isSpace || event.key === "Enter")) return;
+  if (isSpace) { event.preventDefault(); togglePlay(); return; }
+  const key = event.key.toLowerCase();
+  if (key === "r") reset();
+  else if (key === "m") toggleSound();
+  else if (key === "f") void toggleFullscreen();
 });
 
-soundButton.addEventListener("click",() => {
-  soundOn = !soundOn;
-  if (soundOn && started) void audio.play();
-  else audio.pause();
-  render();
-});
-
-document.querySelector("#fullscreen").addEventListener("click",async () => {
-  if (document.fullscreenElement) await document.exitFullscreen();
-  else await document.documentElement.requestFullscreen();
-});
-
-window.addEventListener("pagehide",() => {
-  window.clearTimeout(broadcastScheduleTimer);
-  window.clearTimeout(broadcastHideTimer);
-  window.clearTimeout(anomalyScheduleTimer);
-  window.clearTimeout(anomalyHideTimer);
-  window.clearTimeout(milestoneHideTimer);
-  stopPixelDrop();
-});
+window.addEventListener("pagehide",clearAllTimers);
 
 render();

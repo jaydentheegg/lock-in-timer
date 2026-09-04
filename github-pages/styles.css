@@ -1,101 +1,101 @@
 @font-face { font-family:"Tektur Display"; src:url("./fonts/Tektur-Variable.ttf") format("truetype"); font-style:normal; font-weight:400 900; font-display:swap; }
-@font-face { font-family:"QingKe Display"; src:url("./fonts/ZCOOLQingKeHuangYou-Regular.ttf") format("truetype"); font-style:normal; font-weight:400; font-display:swap; }
-@font-face { font-family:"Wallpoet Display"; src:url("./fonts/Wallpoet-Regular.ttf") format("truetype"); font-style:normal; font-weight:400; font-display:swap; }
+@font-face { font-family:"QingKe Display"; src:url("./fonts/ZCOOLQingKeHuangYou-Subset.woff2") format("woff2"); font-style:normal; font-weight:400; font-display:swap; }
 
-:root { color-scheme:dark; }
+/* One accent, three inks. Everything else is background. */
+:root {
+  color-scheme:dark;
+  --bg:#06080a;
+  --ink-1:rgba(216,223,231,.92);
+  --ink-2:rgba(216,223,231,.40);
+  --ink-3:rgba(216,223,231,.15);
+  --clock-stroke:rgba(216,223,231,.24);
+  --accent:#f2a21d;
+  --alert:#e53430;
+}
 * { box-sizing:border-box; }
-html,body { width:100%; height:100%; margin:0; overflow:hidden; background:#050606; }
+html,body { width:100%; height:100%; margin:0; overflow:hidden; background:var(--bg); }
 body,button { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; }
 button { color:inherit; cursor:pointer; }
-.focus-page { position:fixed; inset:0; overflow:hidden; isolation:isolate; background:#050606; color:rgba(245,237,222,.5); }
-.focus-video { position:absolute; inset:0; z-index:-3; width:100%; height:100%; object-fit:cover; }
-.focus-shade { position:absolute; inset:0; z-index:-2; pointer-events:none; background:linear-gradient(180deg,rgba(0,0,0,.38),rgba(0,0,0,.01) 42%,rgba(0,0,0,.52)),radial-gradient(circle at center,transparent 22%,rgba(0,0,0,.16) 88%); }
-.focus-page::after { content:""; position:absolute; inset:0; z-index:-1; pointer-events:none; opacity:.06; background:repeating-linear-gradient(0deg,rgba(255,255,255,.025) 0,rgba(255,255,255,.025) 1px,transparent 1px,transparent 4px); }
-.fullscreen-button { position:absolute; top:28px; right:34px; height:38px; padding:0 14px; border:1px solid rgba(255,255,255,.32); background:rgba(5,6,6,.25); color:rgba(233,223,207,.5); backdrop-filter:blur(12px); font-size:10px; }
-.focus-clock { position:absolute; inset:0; display:grid; place-items:center; padding-bottom:3vh; isolation:isolate; color:rgba(0,0,0,.82); font-family:"Wallpoet Display","Tektur Display","Arial Black",sans-serif; font-size:clamp(116px,20vw,316px); font-style:normal; font-weight:400; line-height:.82; letter-spacing:.012em; font-variant-numeric:tabular-nums; font-synthesis:none; text-shadow:0 1px 0 rgba(224,148,51,.18),0 9px 34px rgba(0,0,0,.68); animation:clock-jolt 3.8s steps(1,end) infinite; }
-.focus-clock::before,.focus-clock::after { content:attr(data-clock); position:absolute; inset:0; display:grid; place-items:center; padding-bottom:3vh; pointer-events:none; opacity:0; filter:contrast(1.8); -webkit-mask-image:repeating-linear-gradient(90deg,#000 0 11px,transparent 11px 16px); mask-image:repeating-linear-gradient(90deg,#000 0 11px,transparent 11px 16px); }
-.focus-clock::before { color:rgba(210,132,39,.78); text-shadow:-12px 0 0 rgba(0,0,0,.75); animation:clock-glitch-a 3.8s steps(1,end) infinite; }
-.focus-clock::after { color:rgba(22,24,23,.94); text-shadow:12px 0 0 rgba(143,111,70,.55); animation:clock-glitch-b 3.8s steps(1,end) .045s infinite; }
-.playback-controls { position:absolute; z-index:4; left:50%; bottom:32px; transform:translateX(-50%); display:flex; align-items:center; gap:12px; }
-.cyber-control { --control-accent:#e8dfd0; position:relative; display:grid; place-items:center; width:62px; height:54px; padding:0; border:0; isolation:isolate; overflow:hidden; background:linear-gradient(135deg,var(--control-accent),rgba(232,223,208,.28)); color:var(--control-accent); clip-path:polygon(11px 0,100% 0,100% calc(100% - 11px),calc(100% - 11px) 100%,0 100%,0 11px); backdrop-filter:blur(15px); transition:color .2s ease,filter .2s ease,transform .2s ease; }
-.cyber-control::before { content:""; position:absolute; inset:1px; z-index:-1; background:rgba(5,6,6,.72); clip-path:polygon(10px 0,100% 0,100% calc(100% - 10px),calc(100% - 10px) 100%,0 100%,0 10px); }
-.cyber-control::after { content:""; position:absolute; right:5px; bottom:5px; width:8px; height:2px; background:currentColor; box-shadow:-11px 0 0 color-mix(in srgb,currentColor 45%,transparent); }
-.cyber-control:hover { filter:drop-shadow(0 0 10px color-mix(in srgb,var(--control-accent) 45%,transparent)); transform:translateY(-1px); }
-.cyber-control:focus-visible { outline:2px solid #fff4dd; outline-offset:4px; }
-.cyber-control.is-active { --control-accent:#f3a72f; color:#ffc866; }
-.play-button { width:54px; height:54px; overflow:visible; background:transparent; color:rgba(232,223,208,.82); clip-path:none; backdrop-filter:none; }
-.play-button::before,.play-button::after { display:none; }
-.play-button.is-active { color:#ffc866; }
-.sound-button { width:54px; height:54px; overflow:visible; background:transparent; color:rgba(232,223,208,.82); clip-path:none; backdrop-filter:none; }
-.sound-button::before,.sound-button::after { display:none; }
-.sound-button.is-active { color:#ffc866; }
-.play-button:focus-visible,.sound-button:focus-visible { outline:0; filter:drop-shadow(0 0 9px rgba(243,167,47,.72)); }
-.control-icon { position:relative; z-index:1; display:block; width:27px; height:27px; fill:currentColor; }
-.icon-pause,.icon-sound-off { display:none; }
-.play-button[data-running="true"] .icon-play,.sound-button[data-sound="off"] .icon-sound-on { display:none; }
-.play-button[data-running="true"] .icon-pause,.sound-button[data-sound="off"] .icon-sound-off { display:block; }
-.screen-reminder { position:absolute; z-index:5; width:max-content; max-width:92vw; padding:0; border:0; background:linear-gradient(90deg,#e53430 0 48%,#f2a21d 48% 100%); background-clip:text; -webkit-background-clip:text; white-space:nowrap; color:transparent; font-family:"QingKe Display","PingFang SC","Microsoft YaHei",sans-serif; font-size:clamp(24px,4.4vw,72px); font-style:normal; font-weight:400; line-height:1; letter-spacing:.06em; font-synthesis:none; filter:drop-shadow(0 4px 18px rgba(0,0,0,.88)); transform:translate(-50%,-50%); opacity:0; pointer-events:none; }
-.screen-reminder::before,.screen-reminder::after { content:attr(data-reminder); position:absolute; inset:0; width:max-content; white-space:nowrap; pointer-events:none; opacity:0; filter:contrast(2); -webkit-mask-image:repeating-linear-gradient(90deg,#000 0 9px,transparent 9px 14px); mask-image:repeating-linear-gradient(90deg,#000 0 9px,transparent 9px 14px); }
-.screen-reminder.show { animation:reminder-burst 3.2s steps(1,end) both; }
-.screen-reminder.show::before { color:#e53430; text-shadow:-11px 0 0 rgba(5,6,6,.72); animation:subtitle-glitch-a 3.2s steps(1,end) both; }
-.screen-reminder.show::after { color:#f2a21d; text-shadow:11px 0 0 rgba(5,6,6,.72); animation:subtitle-glitch-b 3.2s steps(1,end) both; }
-.portrait-hint { display:none; }
-@keyframes reminder-burst { 0%{opacity:0;transform:translate(-50%,-50%) scale(.62);filter:blur(9px);visibility:visible} 8%{opacity:.78;transform:translate(-50%,-50%) scale(1.08);filter:blur(0)} 16%,48%{opacity:.72;transform:translate(-50%,-50%) scale(1);filter:none} 56%{opacity:.76;transform:translate(calc(-50% - 7px),calc(-50% + 2px));filter:contrast(1.8)} 64%{opacity:.66;transform:translate(calc(-50% + 10px),calc(-50% - 2px));filter:contrast(2.2)} 73%{opacity:.7;transform:translate(calc(-50% - 4px),-50%)} 74%,100%{opacity:0;transform:translate(-50%,-50%) scale(.98);visibility:hidden} }
-@keyframes clock-glitch-a { 0%,65%,84%,100%{opacity:0;transform:translate(0);clip-path:inset(0)} 66%{opacity:.94;transform:translate(-18px,2px);clip-path:inset(7% 0 58% 0)} 70%{opacity:.78;transform:translate(13px,-3px);clip-path:inset(51% 0 17% 0)} 74%{opacity:.9;transform:translate(-11px,1px);clip-path:inset(31% 0 39% 0)} 79%{opacity:.72;transform:translate(20px,0);clip-path:inset(72% 0 4% 0)} 83%{opacity:.88;transform:translate(-8px,-2px);clip-path:inset(18% 0 64% 0)} }
-@keyframes clock-glitch-b { 0%,66%,85%,100%{opacity:0;transform:translate(0);clip-path:inset(0)} 67%{opacity:.92;transform:translate(17px,-2px);clip-path:inset(60% 0 10% 0)} 71%{opacity:.86;transform:translate(-14px,3px);clip-path:inset(15% 0 61% 0)} 76%{opacity:.96;transform:translate(12px,-1px);clip-path:inset(44% 0 28% 0)} 80%{opacity:.76;transform:translate(-21px,2px);clip-path:inset(4% 0 76% 0)} 84%{opacity:.9;transform:translate(9px,0);clip-path:inset(75% 0 3% 0)} }
-@keyframes subtitle-glitch-a { 0%,47%,74%,100%{opacity:0;transform:translate(0);clip-path:inset(0)} 48%{opacity:1;transform:translate(-15px,2px);clip-path:inset(5% 0 58% 0)} 55%{opacity:.92;transform:translate(12px,-2px);clip-path:inset(51% 0 16% 0)} 62%{opacity:1;transform:translate(-9px,1px);clip-path:inset(28% 0 43% 0)} 69%{opacity:.88;transform:translate(17px,0);clip-path:inset(70% 0 5% 0)} 73%{opacity:1;transform:translate(-6px,-1px);clip-path:inset(14% 0 67% 0)} }
-@keyframes subtitle-glitch-b { 0%,49%,74%,100%{opacity:0;transform:translate(0);clip-path:inset(0)} 50%{opacity:1;transform:translate(14px,-2px);clip-path:inset(63% 0 8% 0)} 57%{opacity:.9;transform:translate(-13px,2px);clip-path:inset(17% 0 60% 0)} 64%{opacity:1;transform:translate(10px,-1px);clip-path:inset(43% 0 28% 0)} 70%{opacity:.86;transform:translate(-18px,0);clip-path:inset(4% 0 75% 0)} 73%{opacity:1;transform:translate(7px,1px);clip-path:inset(76% 0 3% 0)} }
-@keyframes clock-jolt { 0%,65%,71%,77%,84%,100%{transform:translate(0)} 66%{transform:translate(-3px,1px)} 72%{transform:translate(4px,-1px)} 78%{transform:translate(-2px,0)} 83%{transform:translate(2px,1px)} }
-@media (orientation:portrait) { .focus-clock{font-size:22vw}.fullscreen-button{top:20px;right:20px}.playback-controls{bottom:66px}.portrait-hint{display:block;position:absolute;left:0;right:0;bottom:22px;text-align:center;color:rgba(183,173,159,.5);font-size:10px} }
-@media (prefers-reduced-motion:reduce) { .screen-reminder.show{animation:reminder-fade 3.2s ease both}.focus-clock,.focus-clock::before,.focus-clock::after,.screen-reminder::before,.screen-reminder::after{animation:none} }
-@keyframes reminder-fade { 0%,100%{opacity:0} 12%,62%{opacity:.72} }
+.focus-page { position:fixed; inset:0; overflow:hidden; isolation:isolate; background:var(--bg); color:var(--ink-2); --video-opacity:1; --progress:0; }
 
-/* Immersive focus-event layer. Kept in parity with the React experience. */
-.focus-page { --video-filter:brightness(.69) contrast(1.34) saturate(.76) sepia(.06); --phase-wash:rgba(231,49,40,.12); --phase-grain:.06; --phase-atmosphere:.46; }
-.focus-page[data-phase="trace"] { --phase-grain:.085; }
-.focus-page[data-phase="deep"] { --phase-grain:.11; }
-.focus-page[data-phase="null"] { --phase-grain:.14; }
-.focus-page[data-phase="lock"] { --phase-grain:.17; }
-.focus-video { z-index:-4; filter:var(--video-filter); transition:filter 2s ease; will-change:filter,transform; }
-.focus-shade { z-index:-3; }
-.phase-atmosphere { position:absolute; inset:-12%; z-index:-2; pointer-events:none; opacity:var(--phase-atmosphere); background:linear-gradient(110deg,transparent 10%,var(--phase-wash) 46%,transparent 68%),repeating-linear-gradient(0deg,transparent 0 24px,rgba(238,159,56,.08) 25px,transparent 27px); background-size:170% 100%,100% 180px; mix-blend-mode:screen; animation:phase-drift 14s linear infinite; transition:opacity 2s ease,background-color 2s ease; }
-.focus-page::after { opacity:var(--phase-grain); transition:opacity 2s ease; }
-.fullscreen-button { z-index:6; }
-.phase-indicator { position:absolute; z-index:4; top:30px; left:34px; display:flex; align-items:center; gap:10px; color:rgba(241,161,46,.68); font-family:"Tektur Display",sans-serif; font-size:11px; letter-spacing:.18em; pointer-events:none; }
-.phase-indicator i { display:block; width:32px; height:2px; background:currentColor; box-shadow:10px 0 0 rgba(229,52,48,.5); }
-.preview-indicator { position:absolute; z-index:4; top:52px; left:34px; color:rgba(229,52,48,.72); font-family:"Tektur Display",sans-serif; font-size:8px; letter-spacing:.14em; pointer-events:none; }
+/* Phases decay the footage instead of stacking more filters on top of it. */
+.focus-page[data-phase="trace"] { --video-opacity:.70; }
+.focus-page[data-phase="deep"] { --video-opacity:.34; }
+.focus-page[data-phase="null"] { --video-opacity:.18; }
+.focus-page[data-phase="lock"] { --video-opacity:.10; }
+.focus-video { position:absolute; inset:0; z-index:-3; width:100%; height:100%; object-fit:cover; opacity:var(--video-opacity); filter:brightness(.74) contrast(1.1) saturate(.52); transition:opacity 3s ease; }
+.focus-shade { position:absolute; inset:0; z-index:-2; pointer-events:none; background:linear-gradient(180deg,rgba(6,8,10,.42),rgba(6,8,10,.02) 45%,rgba(6,8,10,.58)),radial-gradient(circle at center,transparent 34%,rgba(6,8,10,.4) 96%); }
+.focus-page::after { content:""; position:absolute; inset:0; z-index:-1; pointer-events:none; opacity:.05; background:repeating-linear-gradient(0deg,rgba(255,255,255,.03) 0,rgba(255,255,255,.03) 1px,transparent 1px,transparent 4px); }
+
+/* A 1px rail carries the progress the phase label used to spell out. */
+.phase-rail { position:absolute; z-index:4; top:0; left:0; right:0; height:1px; background:var(--ink-3); }
+.phase-rail i { display:block; width:calc(var(--progress) * 100%); height:100%; background:var(--accent); transition:width 1s linear; }
+.focus-page[data-phase="lock"] .phase-rail i { background:var(--alert); }
+.phase-indicator { position:absolute; z-index:4; top:26px; left:32px; color:var(--ink-2); font-family:"Tektur Display",sans-serif; font-size:10px; letter-spacing:.34em; pointer-events:none; }
+.focus-page[data-phase="lock"] .phase-indicator { color:var(--alert); }
+.preview-indicator { position:absolute; z-index:4; top:46px; left:32px; color:var(--ink-3); font-family:"Tektur Display",sans-serif; font-size:8px; letter-spacing:.2em; pointer-events:none; }
 .preview-indicator[hidden] { display:none; }
-.milestone-event { position:absolute; inset:0; z-index:9; display:grid; place-content:center; gap:16px; overflow:hidden; background:rgba(2,3,3,.34); text-align:center; opacity:0; visibility:hidden; pointer-events:none; }
-.milestone-event.show { animation:milestone-enter 2.6s steps(1,end) both; }
-.milestone-code { color:#e53430; font-family:"Wallpoet Display",sans-serif; font-size:clamp(72px,15vw,230px); line-height:.8; letter-spacing:.04em; text-shadow:18px 0 0 rgba(242,162,29,.48); }
-.milestone-event p { margin:0; color:#f2a21d; font-family:"QingKe Display","PingFang SC",sans-serif; font-size:clamp(22px,3vw,50px); letter-spacing:.14em; }
-.milestone-scan { position:absolute; inset:0; background:repeating-linear-gradient(0deg,transparent 0 13px,rgba(229,52,48,.2) 14px,transparent 16px); mix-blend-mode:screen; animation:milestone-scan 2.6s linear both; }
-.anomaly-label { position:absolute; z-index:10; right:4vw; bottom:12vh; color:#f2a21d; font-family:"Tektur Display",sans-serif; font-size:clamp(11px,1.4vw,22px); letter-spacing:.24em; text-shadow:-7px 0 0 #e53430; opacity:0; pointer-events:none; }
-.anomaly-label.show { animation:anomaly-label 1.8s steps(1,end) both; }
-.signal-bleed { position:absolute; inset:-20% -40%; z-index:7; opacity:0; pointer-events:none; background:repeating-linear-gradient(90deg,transparent 0 8%,rgba(229,52,48,.68) 8% 11%,transparent 11% 18%,rgba(242,162,29,.55) 18% 22%,transparent 22% 31%); mix-blend-mode:screen; }
-.pixel-canvas { position:absolute; z-index:8; left:7%; top:10%; width:86%; height:80%; opacity:0; image-rendering:pixelated; pointer-events:none; filter:contrast(1.75) saturate(1.45); }
-.vertical-glitch { position:absolute; inset:-5% -10%; z-index:3; opacity:0; pointer-events:none; overflow:hidden; background:repeating-linear-gradient(90deg,transparent 0 5vw,rgba(238,155,46,.16) 5vw 5.35vw,transparent 5.35vw 9vw,rgba(21,7,2,.48) 9vw 10.2vw,transparent 10.2vw 17vw); mix-blend-mode:multiply; }
-.vertical-glitch::before,.vertical-glitch::after { content:""; position:absolute; inset:0; background:repeating-linear-gradient(90deg,transparent 0 11%,rgba(245,161,44,.26) 11% 12.5%,transparent 12.5% 24%,rgba(0,0,0,.72) 24% 28%,transparent 28% 41%); transform:translateX(-18%); }
-.vertical-glitch::after { background:repeating-linear-gradient(90deg,transparent 0 7%,rgba(229,52,48,.18) 7% 9%,transparent 9% 31%,rgba(0,0,0,.88) 31% 34%,transparent 34% 49%); transform:translateX(23%); }
-.focus-page[data-started="true"] .vertical-glitch { animation:vertical-glitch 6.2s steps(1,end) infinite; }
-.focus-page:is([data-phase="deep"],[data-phase="null"],[data-phase="lock"]) .focus-video { opacity:0; }
-.focus-page:is([data-phase="deep"],[data-phase="null"],[data-phase="lock"]) { background:#000; }
-.focus-page:is([data-phase="deep"],[data-phase="null"],[data-phase="lock"]) .focus-shade,
-.focus-page:is([data-phase="deep"],[data-phase="null"],[data-phase="lock"]) .phase-atmosphere { opacity:0; visibility:hidden; }
-.focus-page[data-anomaly="frame-loss"] .focus-video { animation:frame-loss 1.8s steps(1,end) both; }
-.focus-page[data-anomaly="memory-echo"] .focus-clock::before { animation:memory-echo-a 1.8s steps(1,end) both; }
-.focus-page[data-anomaly="memory-echo"] .focus-clock::after { animation:memory-echo-b 1.8s steps(1,end) both; }
-.focus-page[data-anomaly="signal-bleed"] .signal-bleed { animation:signal-bleed 1.8s steps(1,end) both; }
-.focus-page[data-anomaly="pixel-drop"] .pixel-canvas { animation:pixel-drop 1.8s steps(1,end) both; }
-@keyframes phase-drift { from{background-position:140% 0,0 0} to{background-position:-70% 0,0 180px} }
-@keyframes milestone-enter { 0%,100%{opacity:0;visibility:hidden} 5%{opacity:1;visibility:visible;transform:translateX(-14px);filter:contrast(2)} 9%,52%{opacity:1;visibility:visible;transform:translateX(0);filter:none} 57%{opacity:.78;transform:translateX(18px);clip-path:inset(18% 0 54% 0)} 62%{opacity:1;transform:translateX(-8px);clip-path:inset(57% 0 12% 0)} 70%{opacity:.9;transform:translateX(5px);clip-path:inset(33% 0 36% 0)} 78%{opacity:1;transform:translateX(0);clip-path:inset(0)} 88%{opacity:.35;visibility:visible} }
-@keyframes milestone-scan { 0%{transform:translateY(-100%)} 100%{transform:translateY(100%)} }
-@keyframes anomaly-label { 0%,100%{opacity:0} 8%,70%{opacity:.9} 16%{transform:translateX(-12px)} 23%{transform:translateX(8px)} 30%,70%{transform:translateX(0)} }
-@keyframes frame-loss { 0%,100%{transform:translate(0);clip-path:inset(0)} 12%{transform:translateY(-18px) scale(1.03);clip-path:inset(0 0 61% 0)} 22%{transform:translateY(13px) scale(1.02);clip-path:inset(42% 0 0 0)} 34%{transform:translateX(-9px) scale(1.025);clip-path:inset(19% 0 48% 0)} 48%{transform:translateX(11px) scale(1.02);clip-path:inset(67% 0 8% 0)} 66%{transform:translateY(-6px) scale(1.01);clip-path:inset(0)} }
-@keyframes memory-echo-a { 0%,100%{opacity:0;transform:translate(0)} 8%,72%{opacity:.95;transform:translate(-42px,4px);clip-path:inset(9% 0 58% 0)} 18%{transform:translate(29px,-5px);clip-path:inset(54% 0 14% 0)} 33%{transform:translate(-23px,2px);clip-path:inset(31% 0 38% 0)} 48%{transform:translate(36px,0);clip-path:inset(71% 0 4% 0)} }
-@keyframes memory-echo-b { 0%,100%{opacity:0;transform:translate(0)} 10%,74%{opacity:.9;transform:translate(38px,-3px);clip-path:inset(61% 0 9% 0)} 21%{transform:translate(-31px,5px);clip-path:inset(14% 0 63% 0)} 37%{transform:translate(25px,-2px);clip-path:inset(43% 0 27% 0)} 53%{transform:translate(-39px,1px);clip-path:inset(5% 0 76% 0)} }
-@keyframes signal-bleed { 0%,100%{opacity:0;transform:translateX(-36%)} 8%{opacity:.88} 17%{transform:translateX(-12%)} 38%{transform:translateX(8%)} 61%{transform:translateX(27%)} 78%{opacity:.72;transform:translateX(48%)} }
-@keyframes pixel-drop { 0%,100%{opacity:0;transform:translate(0) scale(.98);clip-path:inset(0 0 100% 0)} 7%{opacity:.94;transform:translate(-18px,5px) scale(1.03);clip-path:inset(4% 8% 63% 2%)} 16%{transform:translate(13px,-4px) scale(.99);clip-path:inset(58% 1% 8% 13%)} 29%{transform:translate(-8px,2px);clip-path:inset(22% 36% 43% 0)} 46%{transform:translate(16px,-2px);clip-path:inset(67% 7% 3% 29%)} 63%{opacity:.86;transform:translate(-11px,0);clip-path:inset(8% 51% 54% 4%)} 76%{opacity:.76;clip-path:inset(39% 3% 28% 35%)} 88%{opacity:.68;clip-path:inset(73% 22% 2% 0)} }
-@keyframes vertical-glitch { 0%,54%,60%,76%,82%,100%{opacity:0;transform:translateX(0)} 55%{opacity:.9;transform:translateX(-2.4vw);clip-path:inset(0 0 12% 0)} 57%{opacity:.58;transform:translateX(3.2vw);clip-path:inset(17% 0 0 0)} 59%{opacity:.82;transform:translateX(-1vw);clip-path:inset(0)} 77%{opacity:.72;transform:translateX(4vw);clip-path:inset(4% 0 31% 0)} 79%{opacity:.94;transform:translateX(-3vw);clip-path:inset(43% 0 0 0)} 81%{opacity:.5;transform:translateX(1.4vw);clip-path:inset(0)} }
-@keyframes milestone-fade { 0%,100%{opacity:0} 15%,72%{opacity:1} }
-@media (prefers-reduced-motion:reduce) { .phase-atmosphere,.milestone-scan{animation:none}.milestone-event.show{animation:milestone-fade 2.6s ease both}.signal-bleed,.pixel-canvas,.anomaly-label,.vertical-glitch{display:none}.focus-page[data-anomaly] .focus-video{animation:none} }
+
+/* Outlined numerals stay legible whether or not the footage is behind them. */
+.focus-clock { position:absolute; inset:0; display:grid; place-items:center; padding-bottom:3vh; isolation:isolate; color:rgba(242,162,29,.04); -webkit-text-stroke:clamp(1px,.16vw,2.4px) var(--clock-stroke); text-shadow:0 0 34px rgba(6,8,10,.72); font-family:"Tektur Display",ui-monospace,"SFMono-Regular",monospace; font-size:clamp(104px,18vw,300px); font-weight:500; line-height:.9; letter-spacing:.02em; font-variant-numeric:tabular-nums; font-synthesis:none; transition:-webkit-text-stroke-color 3s ease; }
+.focus-page[data-phase="null"] .focus-clock { -webkit-text-stroke-color:rgba(242,162,29,.28); }
+.focus-page[data-phase="lock"] .focus-clock { -webkit-text-stroke-color:rgba(242,162,29,.5); }
+.focus-clock::before,.focus-clock::after { content:attr(data-clock); position:absolute; inset:0; display:grid; place-items:center; padding-bottom:3vh; pointer-events:none; opacity:0; color:transparent; }
+.focus-clock::before { -webkit-text-stroke-color:var(--alert); }
+.focus-clock::after { -webkit-text-stroke-color:var(--accent); }
+
+/* Controls read as marks, not chrome: no borders, no fills, no glow. */
+.playback-controls { position:absolute; z-index:4; left:50%; bottom:34px; transform:translateX(-50%); display:flex; align-items:center; gap:20px; }
+.hud-button { display:grid; place-items:center; width:44px; height:44px; padding:0; border:0; background:none; color:var(--ink-2); transition:color .18s ease,opacity .18s ease; }
+.hud-button:hover:not(:disabled) { color:var(--ink-1); }
+.hud-button.is-active { color:var(--accent); }
+.hud-button:disabled { opacity:.25; cursor:default; }
+.hud-button:focus-visible { outline:1px solid var(--accent); outline-offset:6px; }
+.control-icon { display:block; width:24px; height:24px; fill:currentColor; }
+.icon-pause,.icon-sound-off { display:none; }
+.hud-button[data-running="true"] .icon-play,.hud-button[data-sound="off"] .icon-sound-on { display:none; }
+.hud-button[data-running="true"] .icon-pause,.hud-button[data-sound="off"] .icon-sound-off { display:block; }
+.fullscreen-button { position:absolute; z-index:6; top:24px; right:32px; height:28px; padding:0; border:0; background:none; color:var(--ink-2); font-family:"Tektur Display",sans-serif; font-size:10px; letter-spacing:.24em; transition:color .18s ease; }
+.fullscreen-button:hover { color:var(--ink-1); }
+.fullscreen-button:focus-visible { outline:1px solid var(--accent); outline-offset:6px; }
+.key-hint { position:absolute; z-index:4; left:32px; bottom:34px; color:var(--ink-3); font-family:"Tektur Display",sans-serif; font-size:9px; letter-spacing:.22em; pointer-events:none; }
+
+/* Signals: quiet by default, so the rare ones land. */
+.screen-reminder { position:absolute; z-index:5; width:max-content; max-width:88vw; white-space:nowrap; color:var(--accent); font-family:"QingKe Display","PingFang SC","Microsoft YaHei",sans-serif; font-size:clamp(20px,3.2vw,48px); font-weight:400; line-height:1; letter-spacing:.1em; font-synthesis:none; transform:translate(-50%,-50%); opacity:0; pointer-events:none; }
+.screen-reminder.show { animation:reminder-fade 4.4s ease both; }
+.milestone-event { position:absolute; inset:0; z-index:9; display:grid; place-content:center; gap:22px; background:rgba(6,8,10,.88); text-align:center; opacity:0; visibility:hidden; pointer-events:none; }
+.milestone-event.show { animation:milestone-fade 3s ease both; }
+.milestone-code { margin-right:-.14em; color:transparent; -webkit-text-stroke:1.5px var(--accent); font-family:"Tektur Display",sans-serif; font-size:clamp(56px,11vw,170px); font-weight:500; line-height:.9; letter-spacing:.14em; }
+.milestone-event p { margin:0; color:var(--ink-2); font-family:"QingKe Display","PingFang SC",sans-serif; font-size:clamp(16px,2vw,30px); letter-spacing:.18em; }
+.focus-page.milestone-open .focus-clock,
+.focus-page.milestone-open .playback-controls { opacity:0; transition:opacity .4s ease; }
+.anomaly-label { position:absolute; z-index:10; right:32px; bottom:74px; color:var(--alert); font-family:"Tektur Display",sans-serif; font-size:10px; letter-spacing:.3em; opacity:0; pointer-events:none; }
+.anomaly-label.show { animation:anomaly-label 1.6s ease both; }
+
+/* Two anomalies, fired only when the phase turns over. */
+.focus-page[data-anomaly="frame-loss"] .focus-video { animation:frame-loss 1.6s steps(1,end) both; }
+.focus-page[data-anomaly="memory-echo"] .focus-clock::before { animation:memory-echo-a 1.6s steps(1,end) both; }
+.focus-page[data-anomaly="memory-echo"] .focus-clock::after { animation:memory-echo-b 1.6s steps(1,end) both; }
+
+@keyframes reminder-fade { 0%,100%{opacity:0} 10%,72%{opacity:.85} }
+@keyframes milestone-fade { 0%,100%{opacity:0;visibility:hidden} 8%,78%{opacity:1;visibility:visible} }
+@keyframes anomaly-label { 0%,100%{opacity:0} 12%,74%{opacity:.85} }
+@keyframes frame-loss { 0%,100%{transform:translate(0);clip-path:inset(0)} 14%{transform:translateY(-14px);clip-path:inset(0 0 58% 0)} 30%{transform:translateY(10px);clip-path:inset(44% 0 0 0)} 52%{transform:translateX(-8px);clip-path:inset(21% 0 46% 0)} 74%{transform:translateX(7px);clip-path:inset(64% 0 9% 0)} }
+@keyframes memory-echo-a { 0%,100%{opacity:0;transform:translate(0)} 10%,70%{opacity:.7;transform:translate(-16px,3px)} 34%{transform:translate(11px,-3px)} 52%{transform:translate(-9px,1px)} }
+@keyframes memory-echo-b { 0%,100%{opacity:0;transform:translate(0)} 12%,72%{opacity:.7;transform:translate(15px,-2px)} 36%{transform:translate(-12px,3px)} 55%{transform:translate(8px,-1px)} }
+
+.portrait-hint { display:none; }
+@media (orientation:portrait) {
+  .focus-clock { font-size:20vw; }
+  .fullscreen-button { top:18px; right:20px; }
+  .phase-indicator { top:20px; left:20px; }
+  .preview-indicator { top:40px; left:20px; }
+  .playback-controls { bottom:70px; }
+  .key-hint { display:none; }
+  .anomaly-label { right:20px; bottom:118px; }
+  .portrait-hint { display:block; position:absolute; left:0; right:0; bottom:24px; text-align:center; color:var(--ink-3); font-family:"QingKe Display","PingFang SC",sans-serif; font-size:11px; letter-spacing:.2em; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .focus-video,.focus-clock::before,.focus-clock::after { animation:none; }
+  .phase-rail i { transition:none; }
+}
