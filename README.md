@@ -1,12 +1,12 @@
-# Timer
+# Lock-In Timer
 
-**Website:** [https://jaydentheegg.github.io/wymcxvsure/](https://jaydentheegg.github.io/wymcxvsure/)
+**Website:** [https://jaydentheegg.github.io/lock-in-timer/](https://jaydentheegg.github.io/lock-in-timer/)
 
-按下播放后开始的横屏专注正计时器，配有高清画面、默认开启的环境音和随机弹出的实时提醒。
+拉下工牌进入，向下滑过四道阶段闸门，按下 LOCK-IN 开始。计时器在按下之前不存在。
 
 快捷键：`空格` 开始 / 暂停、`R` 重置、`M` 静音、`F` 全屏。
 
-加速预览：[10 / 25 / 45 / 75 秒切换阶段](https://jaydentheegg.github.io/wymcxvsure/?preview=events)。正式模式对应分钟；25 分钟后背景归黑，局部视频马赛克闪现。暂停仅冻结计时，背景音与环境效果继续。
+加速预览：[10 / 25 / 45 / 75 秒切换阶段](https://jaydentheegg.github.io/lock-in-timer/?preview=events)。正式模式对应分钟；25 分钟后背景归黑，局部视频马赛克闪现。暂停仅冻结计时，背景音与环境效果继续。
 
 界面来自 `lib/focus-markup.js`，交互来自 `lib/focus-engine.js`，样式来自 `app/globals.css`。React 和 GitHub Pages 共用这三份源文件。`npm run build` 会自动同步 `github-pages/`，请勿直接修改生成文件。画面只在短暂故障期间采样，减少动态效果的系统设置会关闭故障与扫描动画。
 

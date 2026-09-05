@@ -30,7 +30,7 @@ function sharedMarkup() {
 /**
  * globals.css addresses fonts from the site root because the React app serves
  * it from /. Here it is bundled into /assets/, and GitHub Pages serves the
- * site from /wymcxvsure/, so the same absolute path would 404.
+ * site from /lock-in-timer/, so the same absolute path would 404.
  */
 function relativeFontUrls() {
   return {
