@@ -15,10 +15,7 @@
    interference bursts — it just stops being composited.
    Scoped to [data-gl=on] so any failure before that leaves the CSS build's own
    layers in place. */
-.focus-page[data-gl="on"] .focus-video,
-.focus-page[data-gl="on"] .cinema-shade {
-  opacity: 0;
-}
+.focus-page[data-gl="on"] .focus-video { opacity: 0; }
 
 /* The clock is drawn as particles in the canvas. The element stays for layout
    and for the accessibility tree — its own ink, and the CSS fracture layers
@@ -139,3 +136,50 @@
   display: none;
 }
 
+
+/* The spiral background. It sits behind everything, including the canvas, and
+   is graded down so the interface's amber still reads as the brightest thing
+   on screen. */
+.focus-page[data-gl="on"] .spiral {
+  position: absolute;
+  inset: 0;
+  z-index: -6;
+  overflow: hidden;
+  pointer-events: none;
+  transform-style: preserve-3d;
+}
+
+.focus-page[data-gl="on"] .spiral__card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 124px;
+  height: 124px;
+  border-radius: 2px;
+  background-position: center;
+  background-size: cover;
+  filter: brightness(.4) saturate(.5) contrast(1.06);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, .72);
+  will-change: transform, opacity;
+}
+
+/* A bed under the middle of the frame. .cinema-shade darkens outward, which is
+   the wrong direction for this: the clock and the aperture sit dead centre,
+   which is exactly where a card in the helix passes behind them. */
+.focus-page[data-gl="on"] .spiral::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2000;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 58% 44% at 50% 44%,
+    rgba(4, 2, 0, .82),
+    rgba(4, 2, 0, .5) 55%,
+    transparent 100%
+  );
+}
+
+/* The video is no longer composited — it stays loaded only because the engine
+   samples it for the interference bursts. The shade grades the spiral now. */
+.focus-page[data-gl="on"] .cinema-shade { opacity: 1; }

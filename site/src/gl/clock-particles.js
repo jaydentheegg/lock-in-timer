@@ -118,13 +118,14 @@ const FRAG = /* glsl */ `
   uniform vec3 uColor;
   uniform vec3 uHighlight;
   uniform float uOpacity;
+  uniform float uPresence;
 
   void main() {
-    if (vActive < 0.5) discard;
+    if (vActive < 0.5 || uPresence < 0.01) discard;
     vec2 offset = gl_PointCoord - 0.5;
     float disc = 1.0 - smoothstep(0.18, 0.5, length(offset));
     if (disc < 0.01) discard;
-    fragColor = vec4(mix(uColor, uHighlight, vSeed * vSeed), disc * uOpacity);
+    fragColor = vec4(mix(uColor, uHighlight, vSeed * vSeed), disc * uOpacity * uPresence);
   }
 `;
 
@@ -186,6 +187,7 @@ export class ClockParticles {
         uSize: { value: PARTICLE_SIZE },
         uPixelRatio: { value: 1 },
         uTear: { value: 0 },
+        uPresence: { value: 0 },
         uColor: { value: new THREE.Color(0xf4b65c) },
         uHighlight: { value: new THREE.Color(0xea4d32) },
         uOpacity: { value: 0.92 },
@@ -425,6 +427,16 @@ export class ClockParticles {
     this.geometry.attributes.aFrom.needsUpdate = true;
     this.geometry.attributes.aActive.needsUpdate = true;
     this.geometry.attributes.aHalf.needsUpdate = true;
+  }
+
+  /**
+   * The clock does not exist until the session does. Before LOCK-IN there is
+   * nothing to count, and a 00:00 sitting there is a promise the page has not
+   * been asked for yet.
+   */
+  setPresence(target, dt) {
+    const uniform = this.material.uniforms.uPresence;
+    uniform.value += (target - uniform.value) * (1 - Math.exp(-dt * 3.2));
   }
 
   /** `amount` is roughly 0..2, in the same units the reference clamps to. */

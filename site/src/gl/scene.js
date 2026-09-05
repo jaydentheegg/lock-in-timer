@@ -1,11 +1,10 @@
 import * as THREE from "three";
 import { ParticleField } from "./particles.js";
-import { Backdrop } from "./backdrop.js";
-import { RippleField } from "./ripple.js";
 import { Gates } from "./gates.js";
 import { EnterParticles } from "./enter.js";
 import { VirtualScroll, SECTIONS, CAMERA_Z, inverseLerp } from "../scroll.js";
 import { TargetCursor } from "../target-cursor.js";
+import { Spiral } from "../spiral.js";
 import { ClockParticles } from "./clock-particles.js";
 
 const FOV = 32;
@@ -19,29 +18,32 @@ const LOCK_OUT_MS = 600;
 
 const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
 
-// globals.css drops --scene-opacity to 0 from DEEP onward and the clock is
-// designed to carry itself on black from there. These match it rather than
-// reinterpreting it; the depth field is what gives that emptiness a distance.
-const VIDEO_GAIN_BY_PHASE = { link: 1, trace: 1, deep: 0, null: 0, lock: 0 };
+// The deeper the session, the less there is to look at. The depth field is what
+// gives that emptiness a distance.
 const FOG_BY_PHASE = { link: 0.012, trace: 0.015, deep: 0.022, null: 0.027, lock: 0.032 };
+// globals.css used to drop --scene-opacity to nothing from DEEP onward. The
+// spiral takes that over: the deeper the session, the less of the city is left.
+const SPIRAL_DIM_BY_PHASE = { link: 0, trace: 0.15, deep: 0.7, null: 0.85, lock: 1 };
 const PARTICLE_OPACITY_BY_PHASE = { link: 0.26, trace: 0.3, deep: 0.4, null: 0.44, lock: 0.5 };
 
 export class Scene {
   constructor(canvas, page, video) {
     this.page = page;
+    // Transparent: the spiral is a DOM layer behind the canvas now, so the
+    // scene has to let it through.
     this.renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: false,
-      alpha: false,
+      alpha: true,
       powerPreference: "high-performance",
     });
-    this.renderer.setClearColor(0x000000, 1);
+    this.renderer.setClearColor(0x000000, 0);
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 120);
     this.camera.position.z = CAMERA_Z.start;
 
-    this.backdrop = new Backdrop(video, page.querySelector("video")?.getAttribute("poster"));
+    this.spiral = new Spiral(page, import.meta.env.BASE_URL);
 
     this.gates = new Gates();
     this.scene.add(this.gates.group);
@@ -58,9 +60,6 @@ export class Scene {
     this.lock = 0;
     this.lockTarget = 0;
 
-    this.ripple = new RippleField();
-    this.backdrop.setRipple(this.ripple.texture, new THREE.Vector2(1, 1));
-
     this.particles = new ParticleField();
     this.scene.add(this.particles.points);
 
@@ -70,7 +69,6 @@ export class Scene {
     this.clockElement = page.querySelector(".focus-clock");
     this.clock = new ClockParticles(this.clockElement);
     this.camera.add(this.clock.points);
-    this.camera.add(this.backdrop.mesh);
     this.scene.add(this.camera);
 
     this.mouse = new THREE.Vector2(2, 2);
@@ -116,7 +114,6 @@ export class Scene {
     window.addEventListener("click", this.onClick);
     this.scroll.attach();
     this.cursor.attach();
-    this.ripple.attach();
     this.resize();
     this.frameClock.start();
     this.tick();
@@ -141,8 +138,8 @@ export class Scene {
     const phase = this.page.dataset.phase || "link";
     if (phase === this.phase) return;
     this.phase = phase;
-    this.backdrop.setGain(VIDEO_GAIN_BY_PHASE[phase] ?? 1);
     this.fogTarget = FOG_BY_PHASE[phase] ?? 0.012;
+    this.spiralDimTarget = SPIRAL_DIM_BY_PHASE[phase] ?? 0;
     this.particleTarget = PARTICLE_OPACITY_BY_PHASE[phase] ?? 0.26;
   }
 
@@ -154,11 +151,8 @@ export class Scene {
     this.renderer.setSize(width, height, false);
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
-    this.ripple.resize(width, height, this.pixelRatio);
     this.enter.setPixelRatio(this.pixelRatio);
     this.enter.layout(this.camera, this.page);
-    this.backdrop.setRipple(this.ripple.texture, this.ripple.texel);
-    this.backdrop.resize(this.camera);
     if (this.clock.unit) {
       this.clock.measure(this.camera);
       this.clock.set(this.readClockText(), { full: true });
@@ -237,9 +231,6 @@ export class Scene {
       this.cameraZFor(progress) * worldOpacity + CAMERA_Z.start * folded;
 
     // The surface recedes as the descent goes on, so the gates are not
-    // competing with the footage for the frame.
-    this.backdrop.setDescent(progress * worldOpacity * 0.82);
-
     this.gates.opacity = worldOpacity;
     this.gates.update(dt, this.camera.position.z);
     const arrival = inverseLerp(...SECTIONS.enter, progress) * worldOpacity;
@@ -271,21 +262,26 @@ export class Scene {
     if (this.fogTarget !== undefined) this.approach(uniforms.uFogDensity, this.fogTarget, dt);
     if (this.particleTarget !== undefined) this.approach(uniforms.uOpacity, this.particleTarget, dt);
 
+    // The clock arrives with the session. It re-forms from scatter the first
+    // time the timer starts, and again after a reset.
+    const started = this.page.dataset.started === "true";
+    if (started !== this.started) {
+      this.started = started;
+      if (started) this.clock.set(this.readClockText(), { full: true });
+    }
+    this.clock.setPresence(started ? 1 : 0, dt);
     this.clock.set(this.readClockText());
     this.clock.update(dt, this.pixelRatio);
 
-    this.backdrop.update(dt);
     this.particles.update(dt, {
       mouse: this.mouse,
       pixelRatio: this.pixelRatio,
       cameraZ: this.camera.position.z,
     });
 
-    // The displacement field first, into its own target; the backdrop samples
-    // it. The pass skips itself entirely once every ripple has died.
-    this.ripple.update(dt);
-    this.ripple.render(this.renderer);
-    this.renderer.setClearColor(0x000000, 1);
+    this.spiralDim = (this.spiralDim ?? 0) +
+      ((this.spiralDimTarget ?? 0) - (this.spiralDim ?? 0)) * (1 - Math.exp(-dt * 0.6));
+    this.spiral.update(dt, progress, Math.max(folded, this.spiralDim));
     this.renderer.render(this.scene, this.camera);
   };
 
@@ -297,12 +293,11 @@ export class Scene {
     window.removeEventListener("click", this.onClick);
     this.scroll.detach();
     this.cursor.dispose();
+    this.spiral.dispose();
     this.particles.dispose();
     this.clock.dispose();
-    this.ripple.dispose();
     this.gates.dispose();
     this.enter.dispose();
-    this.backdrop.dispose();
     this.renderer.dispose();
   }
 }
