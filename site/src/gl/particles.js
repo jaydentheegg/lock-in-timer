@@ -14,12 +14,22 @@ const VERT = /* glsl */ `
   uniform vec2 uMouse;
   uniform float uRepelRadius;
   uniform float uRepelForce;
+  uniform float uCameraZ;
+  uniform vec2 uDepth;
 
   out float vDepth;
   out float vSeed;
 
   void main() {
     vec3 drifted = position;
+
+    // The field is a volume carried in front of the camera, not a slab parked
+    // in the world: wrapping depth keeps density constant however far the
+    // descent travels, instead of the camera flying into its own dust.
+    float span = uDepth.y - uDepth.x;
+    float ahead = mod(uCameraZ - position.z - uDepth.x, span) + uDepth.x;
+    drifted.z = uCameraZ - ahead;
+
     // Two slow sines per axis, detuned by the per-point seed, so no two points
     // share a period and the field never visibly loops.
     drifted.x += sin(uTime * 0.11 + seed.x * 6.283) * 0.22;
@@ -97,6 +107,8 @@ export class ParticleField {
         uMouse: { value: new THREE.Vector2(2, 2) },
         uRepelRadius: { value: 0.34 },
         uRepelForce: { value: 0.06 },
+        uCameraZ: { value: 0 },
+        uDepth: { value: new THREE.Vector2(2, 20) },
         uColor: { value: new THREE.Color(0xf2a21d) },
         uFogColor: { value: new THREE.Color(0x06080a) },
         uFogDensity: { value: 0.012 },
@@ -114,8 +126,9 @@ export class ParticleField {
     this.geometry.setDrawRange(0, Math.max(1, Math.round(this.count * fraction)));
   }
 
-  update(dt, { mouse, pixelRatio }) {
+  update(dt, { mouse, pixelRatio, cameraZ = 0 }) {
     const uniforms = this.material.uniforms;
+    uniforms.uCameraZ.value = cameraZ;
     uniforms.uTime.value += dt;
     uniforms.uPixelRatio.value = pixelRatio;
     uniforms.uMouse.value.lerp(mouse, 1 - Math.exp(-dt * 6));

@@ -25,6 +25,7 @@ const FRAG = /* glsl */ `
   uniform sampler2D uMap;
   uniform float uHasMap;
   uniform float uGain;
+  uniform float uDescent;
   uniform vec2 uCover;
 
   // Pointer ripples, ported from React Bits' RippleDistortion. The field is
@@ -123,7 +124,7 @@ const FRAG = /* glsl */ `
           frame += uHighlight * clamp((raw - flatSpec) / max(1.0 - flatSpec, 0.0001), 0.0, 1.0) * uGlint;
         }
 
-        color = frame * uGain;
+        color = frame * uGain * (1.0 - uDescent);
       }
     }
 
@@ -150,6 +151,9 @@ export class Backdrop {
         uMap: { value: this.texture },
         uHasMap: { value: 0 },
         uGain: { value: 1 },
+        // Scroll depth, applied straight rather than eased: it should track the
+        // wheel exactly, while the per-phase gain keeps its 1.8s transition.
+        uDescent: { value: 0 },
         uCover: { value: new THREE.Vector2(1, 1) },
         uRipple: { value: null },
         uTexel: { value: new THREE.Vector2(1, 1) },
@@ -210,8 +214,19 @@ export class Backdrop {
     this.targetGain = gain;
   }
 
-  resize(camera) {
-    const distance = Math.abs(DEPTH - camera.position.z);
+  /** How far the camera has travelled away from the surface, 0..1. */
+  setDescent(amount) {
+    this.material.uniforms.uDescent.value = Math.min(1, Math.max(0, amount));
+  }
+
+  /**
+   * Sized against the camera's home depth rather than wherever it happens to
+   * be. The camera travels now, so measuring from its live position would fix
+   * the plane at whatever size a stray resize caught it at — and then the
+   * backdrop stays that size once the camera comes home.
+   */
+  resize(camera, referenceZ = camera.position.z) {
+    const distance = Math.abs(DEPTH - referenceZ);
     const height = 2 * distance * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
     this.mesh.scale.set(height * camera.aspect, height, 1);
     this.planeAspect = camera.aspect;
