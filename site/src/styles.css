@@ -1,14 +1,14 @@
-@font-face { font-family:"Tektur Display"; src:url("./fonts/Tektur-Variable.ttf") format("truetype"); font-style:normal; font-weight:400 900; font-display:swap; }
-@font-face { font-family:"QingKe Display"; src:url("./fonts/ZCOOLQingKeHuangYou-Subset.woff2") format("woff2"); font-style:normal; font-weight:400; font-display:swap; }
+@font-face { font-family:"Tektur Display"; src:url("../fonts/Tektur-Variable.ttf") format("truetype"); font-style:normal; font-weight:400 900; font-display:swap; }
+@font-face { font-family:"QingKe Display"; src:url("../fonts/ZCOOLQingKeHuangYou-Subset.woff2") format("woff2"); font-style:normal; font-weight:400; font-display:swap; }
 
-/* One accent, three inks. Everything else is background. */
+/* One accent, three inks. The clock, the footage, the shade and the vignette
+   all moved into WebGL; what is left here is the HUD. */
 :root {
   color-scheme:dark;
   --bg:#06080a;
   --ink-1:rgba(216,223,231,.92);
   --ink-2:rgba(216,223,231,.40);
   --ink-3:rgba(216,223,231,.15);
-  --clock-stroke:rgba(216,223,231,.24);
   --accent:#f2a21d;
   --alert:#e53430;
 }
@@ -16,18 +16,18 @@
 html,body { width:100%; height:100%; margin:0; overflow:hidden; background:var(--bg); }
 body,button { font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif; }
 button { color:inherit; cursor:pointer; }
-.focus-page { position:fixed; inset:0; overflow:hidden; isolation:isolate; background:var(--bg); color:var(--ink-2); --video-opacity:1; --progress:0; }
+.focus-page { position:fixed; inset:0; overflow:hidden; isolation:isolate; background:var(--bg); color:var(--ink-2); --progress:0; }
 
-/* Phases decay the footage instead of stacking more filters on top of it. */
-.focus-page[data-phase="trace"] { --video-opacity:.70; }
-.focus-page[data-phase="deep"] { --video-opacity:.34; }
-.focus-page[data-phase="null"] { --video-opacity:.18; }
-.focus-page[data-phase="lock"] { --video-opacity:.10; }
-.focus-video { position:absolute; inset:0; z-index:-3; width:100%; height:100%; object-fit:cover; opacity:var(--video-opacity); filter:brightness(.74) contrast(1.1) saturate(.52); transition:opacity 3s ease; }
-.focus-shade { position:absolute; inset:0; z-index:-2; pointer-events:none; background:linear-gradient(180deg,rgba(6,8,10,.42),rgba(6,8,10,.02) 45%,rgba(6,8,10,.58)),radial-gradient(circle at center,transparent 34%,rgba(6,8,10,.4) 96%); }
+.focus-canvas { position:absolute; inset:0; z-index:-2; display:block; width:100%; height:100%; }
+/* The video element is only a texture source; it is never composited. */
+.focus-source { position:absolute; width:1px; height:1px; opacity:0; pointer-events:none; }
+.focus-page[data-gl="off"] .focus-canvas { opacity:0; }
+
+/* Scanlines stay in CSS until the post chain lands in Phase 4. */
 .focus-page::after { content:""; position:absolute; inset:0; z-index:-1; pointer-events:none; opacity:.05; background:repeating-linear-gradient(0deg,rgba(255,255,255,.03) 0,rgba(255,255,255,.03) 1px,transparent 1px,transparent 4px); }
 
-/* A 1px rail carries the progress the phase label used to spell out. */
+.sr-clock { position:absolute; width:1px; height:1px; margin:-1px; padding:0; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+
 .phase-rail { position:absolute; z-index:4; top:0; left:0; right:0; height:1px; background:var(--ink-3); }
 .phase-rail i { display:block; width:calc(var(--progress) * 100%); height:100%; background:var(--accent); transition:width 1s linear; }
 .focus-page[data-phase="lock"] .phase-rail i { background:var(--alert); }
@@ -35,14 +35,6 @@ button { color:inherit; cursor:pointer; }
 .focus-page[data-phase="lock"] .phase-indicator { color:var(--alert); }
 .preview-indicator { position:absolute; z-index:4; top:46px; left:32px; color:var(--ink-3); font-family:"Tektur Display",sans-serif; font-size:8px; letter-spacing:.2em; pointer-events:none; }
 .preview-indicator[hidden] { display:none; }
-
-/* Outlined numerals stay legible whether or not the footage is behind them. */
-.focus-clock { position:absolute; inset:0; display:grid; place-items:center; padding-bottom:3vh; isolation:isolate; color:rgba(242,162,29,.04); -webkit-text-stroke:clamp(1px,.16vw,2.4px) var(--clock-stroke); text-shadow:0 0 34px rgba(6,8,10,.72); font-family:"Tektur Display",ui-monospace,"SFMono-Regular",monospace; font-size:clamp(104px,18vw,300px); font-weight:500; line-height:.9; letter-spacing:.02em; font-variant-numeric:tabular-nums; font-synthesis:none; transition:-webkit-text-stroke-color 3s ease; }
-.focus-page[data-phase="null"] .focus-clock { -webkit-text-stroke-color:rgba(242,162,29,.28); }
-.focus-page[data-phase="lock"] .focus-clock { -webkit-text-stroke-color:rgba(242,162,29,.5); }
-.focus-clock::before,.focus-clock::after { content:attr(data-clock); position:absolute; inset:0; display:grid; place-items:center; padding-bottom:3vh; pointer-events:none; opacity:0; color:transparent; }
-.focus-clock::before { -webkit-text-stroke-color:var(--alert); }
-.focus-clock::after { -webkit-text-stroke-color:var(--accent); }
 
 /* Controls read as marks, not chrome: no borders, no fills, no glow. */
 .playback-controls { position:absolute; z-index:4; left:50%; bottom:34px; transform:translateX(-50%); display:flex; align-items:center; gap:20px; }
@@ -67,35 +59,22 @@ button { color:inherit; cursor:pointer; }
 .milestone-event.show { animation:milestone-fade 3s ease both; }
 .milestone-code { margin-right:-.14em; color:transparent; -webkit-text-stroke:1.5px var(--accent); font-family:"Tektur Display",sans-serif; font-size:clamp(56px,11vw,170px); font-weight:500; line-height:.9; letter-spacing:.14em; }
 .milestone-event p { margin:0; color:var(--ink-2); font-family:"QingKe Display","PingFang SC",sans-serif; font-size:clamp(16px,2vw,30px); letter-spacing:.18em; }
-.focus-page.milestone-open .focus-clock,
-.focus-page.milestone-open .playback-controls { opacity:0; transition:opacity .4s ease; }
-.anomaly-label { position:absolute; z-index:10; right:32px; bottom:74px; color:var(--alert); font-family:"Tektur Display",sans-serif; font-size:10px; letter-spacing:.3em; opacity:0; pointer-events:none; }
-.anomaly-label.show { animation:anomaly-label 1.6s ease both; }
-
-/* Two anomalies, fired only when the phase turns over. */
-.focus-page[data-anomaly="frame-loss"] .focus-video { animation:frame-loss 1.6s steps(1,end) both; }
-.focus-page[data-anomaly="memory-echo"] .focus-clock::before { animation:memory-echo-a 1.6s steps(1,end) both; }
-.focus-page[data-anomaly="memory-echo"] .focus-clock::after { animation:memory-echo-b 1.6s steps(1,end) both; }
+/* The clock is in the canvas now, so the milestone fades the whole canvas. */
+.focus-page.milestone-open .focus-canvas,
+.focus-page.milestone-open .playback-controls { opacity:.12; transition:opacity .4s ease; }
 
 @keyframes reminder-fade { 0%,100%{opacity:0} 10%,72%{opacity:.85} }
 @keyframes milestone-fade { 0%,100%{opacity:0;visibility:hidden} 8%,78%{opacity:1;visibility:visible} }
-@keyframes anomaly-label { 0%,100%{opacity:0} 12%,74%{opacity:.85} }
-@keyframes frame-loss { 0%,100%{transform:translate(0);clip-path:inset(0)} 14%{transform:translateY(-14px);clip-path:inset(0 0 58% 0)} 30%{transform:translateY(10px);clip-path:inset(44% 0 0 0)} 52%{transform:translateX(-8px);clip-path:inset(21% 0 46% 0)} 74%{transform:translateX(7px);clip-path:inset(64% 0 9% 0)} }
-@keyframes memory-echo-a { 0%,100%{opacity:0;transform:translate(0)} 10%,70%{opacity:.7;transform:translate(-16px,3px)} 34%{transform:translate(11px,-3px)} 52%{transform:translate(-9px,1px)} }
-@keyframes memory-echo-b { 0%,100%{opacity:0;transform:translate(0)} 12%,72%{opacity:.7;transform:translate(15px,-2px)} 36%{transform:translate(-12px,3px)} 55%{transform:translate(8px,-1px)} }
 
 .portrait-hint { display:none; }
 @media (orientation:portrait) {
-  .focus-clock { font-size:20vw; }
   .fullscreen-button { top:18px; right:20px; }
   .phase-indicator { top:20px; left:20px; }
   .preview-indicator { top:40px; left:20px; }
   .playback-controls { bottom:70px; }
   .key-hint { display:none; }
-  .anomaly-label { right:20px; bottom:118px; }
   .portrait-hint { display:block; position:absolute; left:0; right:0; bottom:24px; text-align:center; color:var(--ink-3); font-family:"QingKe Display","PingFang SC",sans-serif; font-size:11px; letter-spacing:.2em; }
 }
 @media (prefers-reduced-motion:reduce) {
-  .focus-video,.focus-clock::before,.focus-clock::after { animation:none; }
   .phase-rail i { transition:none; }
 }

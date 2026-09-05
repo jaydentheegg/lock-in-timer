@@ -6,6 +6,30 @@
 
 快捷键：`空格` 开始 / 暂停、`R` 重置、`M` 静音、`F` 全屏。
 
+## The site (`site/`)
+
+The deployed page is a small standalone Vite project under `site/`, kept out of
+the root vinext app's dependency tree on purpose — three.js has no business in
+it, and CI only installs this one folder.
+
+```bash
+cd site
+npm install
+npm run dev      # serves the repo's public/ media through a dev middleware
+npm run build    # -> site/dist, ~130 KB gzip, no media
+```
+
+- `src/gl/` renders the clock, the depth field and the footage in WebGL2. The
+  clock is a child of the camera, so it stays centred while the rest of the
+  scene will later move past it on scroll.
+- `src/timer.js` holds the timing state with no DOM or WebGL in it. Elapsed
+  time comes from wall-clock deltas, so a backgrounded tab cannot lose minutes.
+- `src/fallback/` is the previous CSS-only build, shipped to `/fallback/` and
+  redirected to when WebGL2 is unavailable.
+- `npm run atlas` regenerates the MSDF glyph atlas from `Tektur-Variable.ttf`.
+  The result is committed; only rerun it when the display face or the clock's
+  charset changes.
+
 ---
 
 ## Development

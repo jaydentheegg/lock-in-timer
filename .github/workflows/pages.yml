@@ -5,9 +5,8 @@ on:
   push:
     branches:
       - main
-      - agent/landscape-study-mode
     paths:
-      - "github-pages/**"
+      - "site/**"
       - "public/study-background.mp4"
       - "public/study-audio.m4a"
       - "public/study-poster.jpg"
@@ -35,13 +34,36 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - name: Install
+        run: npm ci
+        working-directory: site
+
+      # The MSDF atlas is committed rather than generated here: it only changes
+      # when the display face or the charset does. Regenerate with
+      # `npm run atlas` in site/ and commit the result.
+      - name: Build
+        run: npm run build
+        working-directory: site
+
       - name: Configure Pages
         uses: actions/configure-pages@v6
 
       - name: Assemble static site
         run: |
           mkdir _site
-          cp github-pages/index.html github-pages/styles.css github-pages/app.js _site/
+          cp -R site/dist/. _site/
+
+          # The CSS build ships alongside as the no-WebGL2 target.
+          mkdir _site/fallback
+          cp site/fallback/index.html site/fallback/styles.css site/fallback/app.js _site/fallback/
+
           cp public/study-background.mp4 public/study-audio.m4a public/study-poster.jpg _site/
           cp public/empty-captions.vtt public/favicon.svg _site/
           mkdir _site/fonts
