@@ -183,3 +183,30 @@
 /* The video is no longer composited — it stays loaded only because the engine
    samples it for the interference bursts. The shade grades the spiral now. */
 .focus-page[data-gl="on"] .cinema-shade { opacity: 1; }
+
+/* The opening holds the interface back until the card is off the hook. */
+.focus-page[data-gl="on"] { --intro: 1; }
+
+.focus-page[data-gl="on"] .top-line,
+.focus-page[data-gl="on"] .reticle,
+.focus-page[data-gl="on"] .side-mark,
+.focus-page[data-gl="on"] .clock-area,
+.focus-page[data-gl="on"] .spiral {
+  opacity: calc(1 - var(--intro));
+}
+
+.focus-page[data-gl="on"] .intro-hint {
+  position: absolute;
+  z-index: 8;
+  left: 0;
+  right: 0;
+  bottom: 12%;
+  text-align: center;
+  color: var(--muted);
+  font-family: Tektur, monospace;
+  font-size: 11px;
+  letter-spacing: .3em;
+  pointer-events: none;
+  opacity: calc(var(--intro) * .8);
+  transition: opacity .4s ease;
+}

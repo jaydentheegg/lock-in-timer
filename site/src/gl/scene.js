@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { ParticleField } from "./particles.js";
 import { Gates } from "./gates.js";
 import { EnterParticles } from "./enter.js";
+import { Lanyard, LANYARD_DEPTH } from "./lanyard.js";
 import { VirtualScroll, SECTIONS, CAMERA_Z, inverseLerp } from "../scroll.js";
 import { TargetCursor } from "../target-cursor.js";
 import { Spiral } from "../spiral.js";
@@ -51,6 +52,12 @@ export class Scene {
     this.enter = new EnterParticles();
     this.scene.add(this.enter.group);
 
+    // The opening. It hangs in front of everything until it is dismissed, and
+    // the descent cannot begin until then.
+    this.lanyard = new Lanyard();
+    this.camera.add(this.lanyard.group);
+    this.intro = 1;
+
     this.scroll = new VirtualScroll();
     this.cursor = new TargetCursor();
     this.raycaster = new THREE.Raycaster();
@@ -87,12 +94,31 @@ export class Scene {
         -((event.clientY / window.innerHeight) * 2 - 1),
       );
       this.clock.setPointer(event.clientX, event.clientY);
+      if (this.lanyard.dragging) this.updateLanyardPointer(event);
     };
     this.onPointerLeave = () => {
       this.mouse.set(2, 2);
       this.clock.clearPointer();
     };
+    this.onPointerDown = (event) => {
+      if (this.intro < 0.5) return;
+      // Grabbing the card is how the intro is dismissed: pull it, let go, and
+      // the page opens.
+      this.updateLanyardPointer(event);
+      if (this.lanyard.pointer.distanceTo(this.lanyard.tail.position) < 1.1) {
+        this.lanyard.dragging = true;
+      }
+    };
+    this.onPointerUp = () => {
+      if (!this.lanyard.dragging) return;
+      this.lanyard.dragging = false;
+      this.introTarget = 0;
+    };
     this.onClick = (event) => {
+      if (this.intro > 0.5) {
+        this.introTarget = 0;
+        return;
+      }
       if (this.lockTarget === 1 || !this.enter.group.visible) return;
       this.pointerNdc.set(
         (event.clientX / window.innerWidth) * 2 - 1,
@@ -112,6 +138,8 @@ export class Scene {
     window.addEventListener("pointermove", this.onPointerMove, { passive: true });
     window.addEventListener("pointerleave", this.onPointerLeave);
     window.addEventListener("click", this.onClick);
+    window.addEventListener("pointerdown", this.onPointerDown);
+    window.addEventListener("pointerup", this.onPointerUp);
     this.scroll.attach();
     this.cursor.attach();
     this.resize();
@@ -126,6 +154,18 @@ export class Scene {
       this.enter.build();
       this.enter.layout(this.camera, this.page);
     });
+  }
+
+  /** Screen point projected onto the plane the card swings in. */
+  updateLanyardPointer(event) {
+    const distance = Math.abs(LANYARD_DEPTH);
+    const viewHeight = 2 * distance * Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2);
+    const unit = viewHeight / window.innerHeight;
+    this.lanyard.pointer.set(
+      (event.clientX - window.innerWidth / 2) * unit,
+      (window.innerHeight / 2 - event.clientY) * unit,
+      0,
+    );
   }
 
   readClockText() {
@@ -199,7 +239,6 @@ export class Scene {
 
     // Locked means the wheel is swallowed. Coming back out is deliberate: a
     // paused session needs a real upward flick, which is also what R does.
-    this.scroll.setEnabled(this.lock < 0.001);
     if (this.lockTarget === 1) this.scroll.rewind();
   }
 
@@ -220,9 +259,21 @@ export class Scene {
     this.syncPhase();
     this.syncMode(dt);
 
+    // The intro holds the page shut: no scrolling past a card you have not
+    // taken off the hook.
+    this.introTarget = this.introTarget ?? 1;
+    const introRate = this.introTarget < this.intro ? 2.2 : 6;
+    this.intro += (this.introTarget - this.intro) * (1 - Math.exp(-dt * introRate));
+    if (this.intro < 0.01) this.intro = 0;
+    this.lanyard.step(dt);
+    this.lanyard.setOpacity(this.intro);
+    this.scroll.setEnabled(this.lock < 0.001 && this.intro < 0.02);
+    this.page.style.setProperty("--intro", this.intro.toFixed(3));
+
     const progress = this.scroll.update(dt);
     const folded = easeInOut(this.lock);
-    const worldOpacity = 1 - folded;
+    // The intro closes the world down as firmly as a running session does.
+    const worldOpacity = (1 - folded) * (1 - this.intro);
 
     // The world slides past a camera that is pulled back to the top as the
     // session takes over. The clock sits in the interface's own layout, so none
@@ -291,11 +342,14 @@ export class Scene {
     window.removeEventListener("pointermove", this.onPointerMove);
     window.removeEventListener("pointerleave", this.onPointerLeave);
     window.removeEventListener("click", this.onClick);
+    window.removeEventListener("pointerdown", this.onPointerDown);
+    window.removeEventListener("pointerup", this.onPointerUp);
     this.scroll.detach();
     this.cursor.dispose();
     this.spiral.dispose();
     this.particles.dispose();
     this.clock.dispose();
+    this.lanyard.dispose();
     this.gates.dispose();
     this.enter.dispose();
     this.renderer.dispose();
