@@ -2,7 +2,13 @@ import * as THREE from "three";
 
 // .focus-video and .cinema-shade, drawn as one plane instead of two stacked DOM
 // layers. The filter and both gradients below are ports of the globals.css
-// rules, not reinterpretations of them — this phase must not change the look.
+// rules, not reinterpretations of them.
+//
+// The plane hangs off the camera rather than sitting in the world. Left in the
+// world it magnified as the camera descended, and by the bottom of the travel
+// the frame was a 2.4x crop of the building's dark underside — hard-edged black
+// slabs where there had been a city. Parallax is the depth field's job; a
+// backdrop should hold its framing.
 const DEPTH = -24;
 
 const VERT = /* glsl */ `
@@ -219,14 +225,9 @@ export class Backdrop {
     this.material.uniforms.uDescent.value = Math.min(1, Math.max(0, amount));
   }
 
-  /**
-   * Sized against the camera's home depth rather than wherever it happens to
-   * be. The camera travels now, so measuring from its live position would fix
-   * the plane at whatever size a stray resize caught it at — and then the
-   * backdrop stays that size once the camera comes home.
-   */
-  resize(camera, referenceZ = camera.position.z) {
-    const distance = Math.abs(DEPTH - referenceZ);
+  resize(camera) {
+    // Camera-parented, so the distance is the offset and nothing else.
+    const distance = Math.abs(DEPTH);
     const height = 2 * distance * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
     this.mesh.scale.set(height * camera.aspect, height, 1);
     this.planeAspect = camera.aspect;
