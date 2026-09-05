@@ -15,6 +15,7 @@ on:
       - "public/study-loop.av1.mp4"
       - "public/study-audio.m4a"
       - "public/study-poster.jpg"
+      - "public/spiral/**"
       - "public/empty-captions.vtt"
       - "public/favicon.svg"
       - "public/fonts/**"
@@ -81,6 +82,7 @@ jobs:
 
           cp public/study-loop.mp4 public/study-loop.av1.mp4 public/study-audio.m4a _site/
           cp public/study-poster.jpg public/empty-captions.vtt public/favicon.svg _site/
+          cp -R public/spiral _site/spiral
           mkdir _site/fonts
           cp public/fonts/Tektur-Variable.ttf public/fonts/ZCOOLQingKeHuangYou-Subset.woff2 _site/fonts/
 
