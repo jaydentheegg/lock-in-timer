@@ -1,19 +1,23 @@
 import * as THREE from "three";
 
 /**
- * The clock, drawn as particles.
+ * The clock: split-flap mechanism, particle glyphs.
  *
- * The technique is the usual one: rasterise the glyphs to an offscreen 2D
- * canvas, sample the opaque pixels on a fixed grid, and let each sample be a
- * particle that gathers into place from a scattered start.
+ * Glyphs are rasterised to an offscreen canvas and sampled on a fixed grid, so
+ * every digit is a cloud of points rather than type. What those points then do
+ * is the split-flap board's job: on a change the outgoing digit's top half
+ * hinges down about the character's centre line, and at the halfway point the
+ * incoming digit's bottom half hinges up to meet it. There are no cards — the
+ * particles are the leaves, and edge-on they collapse to a line the way a real
+ * flap does.
  *
- * The adaptation this timer needs is that its text changes every second. A
- * whole-string scatter-and-reform once a second would be unreadable, so each
- * character owns a fixed slot range in the buffer and is sampled on its own
- * tabular cell. A digit that did not change resolves to the same targets and
- * never moves; only the seconds re-form each tick, and the minutes once a
- * minute.
+ * Two details carry the mechanism. Each character owns a fixed slot range and
+ * is sampled on its own tabular cell, so a digit that did not change resolves
+ * to identical targets and never moves. And a change walks the digit wheel one
+ * position at a time — 3 to 4 is one flap, 9 to 0 is nine — because that is
+ * what a real board does, and a single jump would read as a crossfade.
  */
+const DIGITS = "0123456789";
 const SLOTS_PER_CELL = 1400;
 const DENSITY = 3; // preferred pixel sampling step, in CSS px
 const PARTICLE_SIZE = 2.2;
@@ -23,18 +27,23 @@ const REPEL_STRENGTH = 42;
 const IDLE_DRIFT = 0.8;
 const CAMERA_DISTANCE = 2.4;
 
-const GATHER_MS = { full: 1600, tick: 420 };
-const STAGGER_FRACTION = { full: 0.42, tick: 0.28 };
+const GATHER_MS = { full: 1600 };
+const STAGGER_FRACTION = { full: 0.42 };
+const FLIP_MS = 95;
 
 const VERT = /* glsl */ `
-  in vec3 position;   // target, in world units on the clock plane
-  in vec3 aFrom;      // where this particle is coming from
+  in vec3 position;   // the incoming glyph, in world units on the clock plane
+  in vec3 aFrom;      // the outgoing glyph
   in vec2 aSeed;
   in float aActive;
+  in float aCell;     // which character this point belongs to
+  in vec2 aHalf;      // +1 top, -1 bottom, for the outgoing and incoming glyph
 
   uniform mat4 modelViewMatrix;
   uniform mat4 projectionMatrix;
-  uniform float uMorph;
+  uniform float uFlip[5];    // per-character flap progress, 0..1
+  uniform float uHinge[5];   // the character's centre line, in world units
+  uniform float uMorph;      // whole-board gather, for the first form and reset
   uniform float uStagger;
   uniform float uTime;
   uniform float uDrift;
@@ -48,13 +57,34 @@ const VERT = /* glsl */ `
   out float vSeed;
   out float vActive;
 
+  const float HALF_PI = 1.5707963;
+
   void main() {
-    // Per-particle delay, so the field arrives as a wave rather than a block.
+    int cell = int(aCell + 0.5);
+    float flip = uFlip[cell];
+    float hinge = uHinge[cell];
+
+    // Past halfway the point belongs to the incoming glyph; before it, to the
+    // outgoing one. The swap is invisible because whichever half is moving is
+    // edge-on at exactly that moment.
+    bool second = flip >= 0.5;
+    vec3 leaf = second ? position : aFrom;
+    float side = second ? aHalf.y : aHalf.x;
+
+    // Only the half that is actually swinging rotates: the outgoing top folds
+    // down, then the incoming bottom folds up.
+    bool swinging = second ? (side < 0.0) : (side > 0.0);
+    float angle = second ? (1.0 - (flip - 0.5) * 2.0) * HALF_PI : -flip * 2.0 * HALF_PI;
+    if (!swinging) angle = 0.0;
+
+    float dy = leaf.y - hinge;
+    vec3 local = vec3(leaf.x, hinge + dy * cos(angle), leaf.z + dy * sin(angle));
+
+    // The whole-board gather, used for the first form and after a reset.
     float span = max(1.0 - uStagger, 0.001);
     float t = clamp((uMorph - aSeed.x * uStagger) / span, 0.0, 1.0);
     t = t * t * (3.0 - 2.0 * t);
-
-    vec3 local = mix(aFrom, position, t);
+    local = mix(aFrom, local, t);
 
     // Resting motion, so a formed clock is never completely dead.
     local.xy += vec2(
@@ -101,7 +131,6 @@ const FRAG = /* glsl */ `
 export class ClockParticles {
   constructor(clockElement) {
     this.element = clockElement;
-    this.cells = [];
     this.text = "";
     this.morph = 1;
     this.morphDuration = GATHER_MS.full / 1000;
@@ -116,9 +145,12 @@ export class ClockParticles {
     const from = new Float32Array(slots * 3);
     const seed = new Float32Array(slots * 2);
     const active = new Float32Array(slots);
+    const cell = new Float32Array(slots);
+    const halves = new Float32Array(slots * 2);
     for (let i = 0; i < slots; i += 1) {
       seed[i * 2] = Math.random();
       seed[i * 2 + 1] = Math.random();
+      cell[i] = Math.floor(i / SLOTS_PER_CELL);
     }
 
     this.geometry = new THREE.BufferGeometry();
@@ -126,6 +158,12 @@ export class ClockParticles {
     this.geometry.setAttribute("aFrom", withUsage(new THREE.BufferAttribute(from, 3)));
     this.geometry.setAttribute("aSeed", new THREE.BufferAttribute(seed, 2));
     this.geometry.setAttribute("aActive", withUsage(new THREE.BufferAttribute(active, 1)));
+    this.geometry.setAttribute("aCell", new THREE.BufferAttribute(cell, 1));
+    this.geometry.setAttribute("aHalf", withUsage(new THREE.BufferAttribute(halves, 2)));
+
+    // One queue per character. A change pushes every intermediate digit, so the
+    // wheel is walked rather than jumped.
+    this.cells = Array.from({ length: 5 }, () => ({ queue: [], flip: 0, running: false }));
 
     this.material = new THREE.RawShaderMaterial({
       glslVersion: THREE.GLSL3,
@@ -136,6 +174,8 @@ export class ClockParticles {
       depthTest: false,
       blending: THREE.AdditiveBlending,
       uniforms: {
+        uFlip: { value: new Float32Array(5) },
+        uHinge: { value: new Float32Array(5) },
         uMorph: { value: 1 },
         uStagger: { value: STAGGER_FRACTION.full },
         uTime: { value: 0 },
@@ -174,6 +214,12 @@ export class ClockParticles {
     uniforms.uRepelStrength.value = REPEL_STRENGTH * this.unit;
     uniforms.uDrift.value = IDLE_DRIFT * this.unit;
     uniforms.uSize.value = PARTICLE_SIZE;
+
+    // Every character hinges about the same line: the glyphs are drawn from a
+    // shared vertical centre, so one value serves all five.
+    const hinge = (window.innerHeight / 2 - this.centre.y) * this.unit;
+    this.hinges = new Array(5).fill(hinge);
+    uniforms.uHinge.value.fill(hinge);
 
     this.layout();
   }
@@ -244,7 +290,7 @@ export class ClockParticles {
   }
 
   /** Samples one character into the world-space targets of its slot range. */
-  sampleCell(index, character, target, active) {
+  sampleCell(index, character, target, active, halves) {
     const context = this.samplerContext;
     const { width, height } = this.sampler;
     context.clearRect(0, 0, width, height);
@@ -271,6 +317,9 @@ export class ClockParticles {
         target[at + 1] = (window.innerHeight / 2 - screenY) * this.unit;
         target[at + 2] = 0;
         active[base + slot] = 1;
+        // Which leaf this point rides: above the character's centre line or
+        // below it.
+        halves[(base + slot) * 2 + 1] = target[at + 1] >= this.hinges[index] ? 1 : -1;
         slot += 1;
       }
     }
@@ -278,48 +327,104 @@ export class ClockParticles {
     for (let rest = slot; rest < SLOTS_PER_CELL; rest += 1) active[base + rest] = 0;
   }
 
+  /** Steps that walk `from` to `to` around the digit wheel. */
+  static route(from, to) {
+    const start = DIGITS.indexOf(from);
+    const end = DIGITS.indexOf(to);
+    if (start < 0 || end < 0) return from === to ? [] : [to];
+    const steps = [];
+    let index = start;
+    while (index !== end) {
+      index = (index + 1) % DIGITS.length;
+      steps.push(DIGITS[index]);
+    }
+    return steps;
+  }
+
   /**
    * `full` scatters everything and reforms — used on the first paint and when
    * the session resets. Otherwise only the characters that changed move.
    */
+  /**
+   * `full` scatters everything and re-forms — the first paint and a reset. A
+   * plain tick instead queues one flap per position of the digit wheel.
+   */
   set(text, { full = false } = {}) {
-    if (!this.unit || text === this.text) return;
-    const previous = this.text;
+    if (!this.unit) return;
     const target = this.geometry.attributes.position.array;
     const from = this.geometry.attributes.aFrom.array;
     const active = this.geometry.attributes.aActive.array;
+    const halves = this.geometry.attributes.aHalf.array;
     const seed = this.geometry.attributes.aSeed.array;
 
-    // Where each particle is right now becomes where it travels from.
-    from.set(target);
-
-    for (let index = 0; index < 5; index += 1) {
-      const character = text[index] ?? " ";
-      if (!full && previous[index] === character) continue;
-      this.sampleCell(index, character, target, active);
-
-      if (!full) continue;
-      const base = index * SLOTS_PER_CELL;
-      for (let slot = 0; slot < SLOTS_PER_CELL; slot += 1) {
-        const at = (base + slot) * 3;
-        const angle = seed[(base + slot) * 2] * Math.PI * 2;
-        const radius = (0.35 + seed[(base + slot) * 2 + 1] * 0.65) * SCATTER * this.unit;
-        from[at] = target[at] + Math.cos(angle) * radius;
-        from[at + 1] = target[at + 1] + Math.sin(angle) * radius;
-        from[at + 2] = 0;
+    if (full) {
+      for (let index = 0; index < 5; index += 1) {
+        const character = text[index] ?? " ";
+        this.sampleCell(index, character, target, active, halves);
+        const base = index * SLOTS_PER_CELL;
+        for (let slot = 0; slot < SLOTS_PER_CELL; slot += 1) {
+          const at = (base + slot) * 3;
+          const angle = seed[(base + slot) * 2] * Math.PI * 2;
+          const radius = (0.35 + seed[(base + slot) * 2 + 1] * 0.65) * SCATTER * this.unit;
+          from[at] = target[at] + Math.cos(angle) * radius;
+          from[at + 1] = target[at + 1] + Math.sin(angle) * radius;
+          from[at + 2] = 0;
+          halves[(base + slot) * 2] = halves[(base + slot) * 2 + 1];
+        }
+        const cell = this.cells[index];
+        cell.queue.length = 0;
+        cell.current = character;
+        cell.flip = 1;
+        cell.running = false;
+        this.material.uniforms.uFlip.value[index] = 1;
       }
+      this.uploadAll();
+      this.text = text;
+      this.morph = 0;
+      this.pendingRest = true;
+      return;
     }
 
+    if (text === this.text) return;
+    this.text = text;
+    for (let index = 0; index < 5; index += 1) {
+      const cell = this.cells[index];
+      const character = text[index] ?? " ";
+      // The colon is not on a wheel.
+      if (index === 2 || !cell) continue;
+      const settled = cell.queue.length ? cell.queue[cell.queue.length - 1] : cell.current;
+      if (settled === character) continue;
+      cell.queue.push(...ClockParticles.route(settled, character));
+    }
+  }
+
+  /**
+   * Starts one flap. What is on screen becomes the outgoing leaf, and the next
+   * digit is sampled into the incoming one.
+   */
+  beginFlip(index, next) {
+    const target = this.geometry.attributes.position.array;
+    const from = this.geometry.attributes.aFrom.array;
+    const active = this.geometry.attributes.aActive.array;
+    const halves = this.geometry.attributes.aHalf.array;
+
+    const base = index * SLOTS_PER_CELL;
+    for (let slot = 0; slot < SLOTS_PER_CELL; slot += 1) {
+      const at = (base + slot) * 3;
+      from[at] = target[at];
+      from[at + 1] = target[at + 1];
+      from[at + 2] = target[at + 2];
+      halves[(base + slot) * 2] = halves[(base + slot) * 2 + 1];
+    }
+    this.sampleCell(index, next, target, active, halves);
+    this.uploadAll();
+  }
+
+  uploadAll() {
     this.geometry.attributes.position.needsUpdate = true;
     this.geometry.attributes.aFrom.needsUpdate = true;
     this.geometry.attributes.aActive.needsUpdate = true;
-
-    this.text = text;
-    this.morph = 0;
-    this.morphDuration = (full ? GATHER_MS.full : GATHER_MS.tick) / 1000;
-    this.material.uniforms.uStagger.value = full
-      ? STAGGER_FRACTION.full
-      : STAGGER_FRACTION.tick;
+    this.geometry.attributes.aHalf.needsUpdate = true;
   }
 
   /** `amount` is roughly 0..2, in the same units the reference clamps to. */
@@ -344,17 +449,42 @@ export class ClockParticles {
     uniforms.uTime.value += dt;
     uniforms.uPixelRatio.value = pixelRatio;
     uniforms.uPointer.value.copy(this.pointer);
+
     // This feeds gl_Position: one non-finite frame would latch through the
     // smoothing and erase the clock for the rest of the session, so the
     // accumulator is checked rather than trusted.
-    // 2 is the clamp ceiling, so this tops out at ~24px of smear.
     const tear = (this.tear ?? 0) * 12 * (this.unit ?? 0);
     if (!Number.isFinite(uniforms.uTear.value)) uniforms.uTear.value = 0;
     const rate = Number.isFinite(dt) ? 1 - Math.exp(-dt * 10) : 1;
     uniforms.uTear.value += (tear - uniforms.uTear.value) * rate;
+
     if (this.morph < 1) {
-      this.morph = Math.min(1, this.morph + dt / this.morphDuration);
+      this.morph = Math.min(1, this.morph + dt / (GATHER_MS.full / 1000));
       uniforms.uMorph.value = this.morph;
+      // Once gathered, the resting glyph becomes the outgoing leaf, so the
+      // first flap after a re-form hinges from the right place.
+      if (this.morph >= 1 && this.pendingRest) {
+        const target = this.geometry.attributes.position.array;
+        this.geometry.attributes.aFrom.array.set(target);
+        this.geometry.attributes.aFrom.needsUpdate = true;
+        this.pendingRest = false;
+      }
+    }
+
+    for (let index = 0; index < 5; index += 1) {
+      const cell = this.cells[index];
+      if (!cell.running && cell.queue.length) {
+        const next = cell.queue.shift();
+        this.beginFlip(index, next);
+        cell.current = next;
+        cell.flip = 0;
+        cell.running = true;
+      }
+      if (cell.running) {
+        cell.flip = Math.min(1, cell.flip + (dt * 1000) / FLIP_MS);
+        if (cell.flip >= 1) cell.running = false;
+      }
+      uniforms.uFlip.value[index] = cell.flip;
     }
   }
 

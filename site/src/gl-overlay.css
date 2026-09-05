@@ -124,3 +124,18 @@
 .focus-page[data-gl="on"] .bottom-note {
   transform: translateY(calc((1 - var(--console-in)) * 12px));
 }
+
+/* The engine still writes the time here and it is the accessible clock, so the
+   element keeps its place in the layout — the particle glyphs are sampled from
+   its box. Only its own ink steps aside. */
+.focus-page[data-gl="on"] .focus-clock {
+  color: transparent;
+  -webkit-text-stroke-color: transparent;
+  text-shadow: none;
+}
+
+.focus-page[data-gl="on"] .focus-clock::before,
+.focus-page[data-gl="on"] .focus-clock::after {
+  display: none;
+}
+

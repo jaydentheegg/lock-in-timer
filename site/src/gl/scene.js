@@ -1,12 +1,12 @@
 import * as THREE from "three";
 import { ParticleField } from "./particles.js";
 import { Backdrop } from "./backdrop.js";
-import { ClockParticles } from "./clock-particles.js";
 import { RippleField } from "./ripple.js";
 import { Gates } from "./gates.js";
 import { EnterParticles } from "./enter.js";
 import { VirtualScroll, SECTIONS, CAMERA_Z, inverseLerp } from "../scroll.js";
 import { TargetCursor } from "../target-cursor.js";
+import { ClockParticles } from "./clock-particles.js";
 
 const FOV = 32;
 const DPR_CAP = 2;
@@ -64,14 +64,15 @@ export class Scene {
     this.particles = new ParticleField();
     this.scene.add(this.particles.points);
 
-    // The clock is drawn as particles, so it hangs off the camera rather than
-    // the scene — later phases move the world past it, never the number.
-    this.clock = new ClockParticles(page.querySelector(".focus-clock"));
+    // Split-flap mechanism, particle glyphs, no cards. It hangs off the camera
+    // so the descent moves the world past the number rather than the number
+    // through the world.
+    this.clockElement = page.querySelector(".focus-clock");
+    this.clock = new ClockParticles(this.clockElement);
     this.camera.add(this.clock.points);
     this.camera.add(this.backdrop.mesh);
     this.scene.add(this.camera);
 
-    this.clockElement = page.querySelector(".focus-clock");
     this.mouse = new THREE.Vector2(2, 2);
     this.frameClock = new THREE.Clock();
     this.running = false;
@@ -120,7 +121,7 @@ export class Scene {
     this.frameClock.start();
     this.tick();
 
-    // Sampling has to wait for the display face, or the first form is drawn in
+    // Sampling has to wait for the display face, or the word is rasterised in
     // the fallback font and every glyph shifts when Tektur arrives.
     void document.fonts.ready.then(() => {
       this.clock.measure(this.camera);
@@ -230,8 +231,8 @@ export class Scene {
     const worldOpacity = 1 - folded;
 
     // The world slides past a camera that is pulled back to the top as the
-    // session takes over; the clock is parented to the camera, so it never
-    // moves through any of this.
+    // session takes over. The clock sits in the interface's own layout, so none
+    // of this moves it.
     this.camera.position.z =
       this.cameraZFor(progress) * worldOpacity + CAMERA_Z.start * folded;
 
@@ -270,9 +271,8 @@ export class Scene {
     if (this.fogTarget !== undefined) this.approach(uniforms.uFogDensity, this.fogTarget, dt);
     if (this.particleTarget !== undefined) this.approach(uniforms.uOpacity, this.particleTarget, dt);
 
-    // A reset winds the clock back to 00:00; that deserves the full reform.
-    const text = this.readClockText();
-    this.clock.set(text, { full: text === "00:00" && this.clock.text !== "" });
+    this.clock.set(this.readClockText());
+    this.clock.update(dt, this.pixelRatio);
 
     this.backdrop.update(dt);
     this.particles.update(dt, {
@@ -280,7 +280,6 @@ export class Scene {
       pixelRatio: this.pixelRatio,
       cameraZ: this.camera.position.z,
     });
-    this.clock.update(dt, this.pixelRatio);
 
     // The displacement field first, into its own target; the backdrop samples
     // it. The pass skips itself entirely once every ripple has died.
