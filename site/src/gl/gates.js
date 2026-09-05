@@ -125,9 +125,11 @@ export class Gates {
       colour.setHex(IDLE).lerp(new THREE.Color(HIT), gate.flash);
       gate.marks.material.color.copy(colour);
       gate.spokes.material.color.copy(colour);
-      // Legible while the gate is still ahead, gone by the time it sweeps past.
+      // Only the gate you are actually approaching announces itself. The window
+      // used to reach far enough that three labels stacked up the middle of the
+      // frame and read as a menu.
       const readable =
-        smoothstep(1.6, 3.2, distance) * (1 - smoothstep(9, 13, distance));
+        smoothstep(1.6, 3.0, distance) * (1 - smoothstep(4.2, 7.0, distance));
       gate.plate.material.opacity = (0.35 + gate.flash * 0.55) * readable * this.opacity;
 
       for (const part of [gate.outline, gate.marks, gate.spokes]) {

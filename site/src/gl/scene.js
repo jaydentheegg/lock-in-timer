@@ -1,11 +1,12 @@
 import * as THREE from "three";
 import { ParticleField } from "./particles.js";
-import { Backdrop } from "./backdrop.js";
-import { ClockParticles } from "./clock-particles.js";
-import { RippleField } from "./ripple.js";
 import { Gates } from "./gates.js";
 import { EnterParticles } from "./enter.js";
+import { Lanyard, LANYARD_DEPTH } from "./lanyard.js";
 import { VirtualScroll, SECTIONS, CAMERA_Z, inverseLerp } from "../scroll.js";
+import { TargetCursor } from "../target-cursor.js";
+import { Spiral } from "../spiral.js";
+import { ClockParticles } from "./clock-particles.js";
 
 const FOV = 32;
 const DPR_CAP = 2;
@@ -18,29 +19,32 @@ const LOCK_OUT_MS = 600;
 
 const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
 
-// globals.css drops --scene-opacity to 0 from DEEP onward and the clock is
-// designed to carry itself on black from there. These match it rather than
-// reinterpreting it; the depth field is what gives that emptiness a distance.
-const VIDEO_GAIN_BY_PHASE = { link: 1, trace: 1, deep: 0, null: 0, lock: 0 };
+// The deeper the session, the less there is to look at. The depth field is what
+// gives that emptiness a distance.
 const FOG_BY_PHASE = { link: 0.012, trace: 0.015, deep: 0.022, null: 0.027, lock: 0.032 };
+// globals.css used to drop --scene-opacity to nothing from DEEP onward. The
+// spiral takes that over: the deeper the session, the less of the city is left.
+const SPIRAL_DIM_BY_PHASE = { link: 0, trace: 0.15, deep: 0.7, null: 0.85, lock: 1 };
 const PARTICLE_OPACITY_BY_PHASE = { link: 0.26, trace: 0.3, deep: 0.4, null: 0.44, lock: 0.5 };
 
 export class Scene {
   constructor(canvas, page, video) {
     this.page = page;
+    // Transparent: the spiral is a DOM layer behind the canvas now, so the
+    // scene has to let it through.
     this.renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: false,
-      alpha: false,
+      alpha: true,
       powerPreference: "high-performance",
     });
-    this.renderer.setClearColor(0x000000, 1);
+    this.renderer.setClearColor(0x000000, 0);
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 120);
     this.camera.position.z = CAMERA_Z.start;
 
-    this.backdrop = new Backdrop(video, page.querySelector("video")?.getAttribute("poster"));
+    this.spiral = new Spiral(page, import.meta.env.BASE_URL);
 
     this.gates = new Gates();
     this.scene.add(this.gates.group);
@@ -48,7 +52,14 @@ export class Scene {
     this.enter = new EnterParticles();
     this.scene.add(this.enter.group);
 
+    // The opening. It hangs in front of everything until it is dismissed, and
+    // the descent cannot begin until then.
+    this.lanyard = new Lanyard();
+    this.camera.add(this.lanyard.group);
+    this.intro = 1;
+
     this.scroll = new VirtualScroll();
+    this.cursor = new TargetCursor();
     this.raycaster = new THREE.Raycaster();
     this.pointerNdc = new THREE.Vector2();
 
@@ -56,20 +67,17 @@ export class Scene {
     this.lock = 0;
     this.lockTarget = 0;
 
-    this.ripple = new RippleField();
-    this.backdrop.setRipple(this.ripple.texture, new THREE.Vector2(1, 1));
-
     this.particles = new ParticleField();
     this.scene.add(this.particles.points);
 
-    // The clock is drawn as particles, so it hangs off the camera rather than
-    // the scene — later phases move the world past it, never the number.
-    this.clock = new ClockParticles(page.querySelector(".focus-clock"));
+    // Split-flap mechanism, particle glyphs, no cards. It hangs off the camera
+    // so the descent moves the world past the number rather than the number
+    // through the world.
+    this.clockElement = page.querySelector(".focus-clock");
+    this.clock = new ClockParticles(this.clockElement);
     this.camera.add(this.clock.points);
-    this.camera.add(this.backdrop.mesh);
     this.scene.add(this.camera);
 
-    this.clockElement = page.querySelector(".focus-clock");
     this.mouse = new THREE.Vector2(2, 2);
     this.frameClock = new THREE.Clock();
     this.running = false;
@@ -86,12 +94,31 @@ export class Scene {
         -((event.clientY / window.innerHeight) * 2 - 1),
       );
       this.clock.setPointer(event.clientX, event.clientY);
+      if (this.lanyard.dragging) this.updateLanyardPointer(event);
     };
     this.onPointerLeave = () => {
       this.mouse.set(2, 2);
       this.clock.clearPointer();
     };
+    this.onPointerDown = (event) => {
+      if (this.intro < 0.5) return;
+      // Grabbing the card is how the intro is dismissed: pull it, let go, and
+      // the page opens.
+      this.updateLanyardPointer(event);
+      if (this.lanyard.pointer.distanceTo(this.lanyard.tail.position) < 1.1) {
+        this.lanyard.dragging = true;
+      }
+    };
+    this.onPointerUp = () => {
+      if (!this.lanyard.dragging) return;
+      this.lanyard.dragging = false;
+      this.introTarget = 0;
+    };
     this.onClick = (event) => {
+      if (this.intro > 0.5) {
+        this.introTarget = 0;
+        return;
+      }
       if (this.lockTarget === 1 || !this.enter.group.visible) return;
       this.pointerNdc.set(
         (event.clientX / window.innerWidth) * 2 - 1,
@@ -111,19 +138,34 @@ export class Scene {
     window.addEventListener("pointermove", this.onPointerMove, { passive: true });
     window.addEventListener("pointerleave", this.onPointerLeave);
     window.addEventListener("click", this.onClick);
+    window.addEventListener("pointerdown", this.onPointerDown);
+    window.addEventListener("pointerup", this.onPointerUp);
     this.scroll.attach();
-    this.ripple.attach();
+    this.cursor.attach();
     this.resize();
     this.frameClock.start();
     this.tick();
 
-    // Sampling has to wait for the display face, or the first form is drawn in
+    // Sampling has to wait for the display face, or the word is rasterised in
     // the fallback font and every glyph shifts when Tektur arrives.
     void document.fonts.ready.then(() => {
       this.clock.measure(this.camera);
       this.clock.set(this.readClockText(), { full: true });
       this.enter.build();
+      this.enter.layout(this.camera, this.page);
     });
+  }
+
+  /** Screen point projected onto the plane the card swings in. */
+  updateLanyardPointer(event) {
+    const distance = Math.abs(LANYARD_DEPTH);
+    const viewHeight = 2 * distance * Math.tan(THREE.MathUtils.degToRad(this.camera.fov) / 2);
+    const unit = viewHeight / window.innerHeight;
+    this.lanyard.pointer.set(
+      (event.clientX - window.innerWidth / 2) * unit,
+      (window.innerHeight / 2 - event.clientY) * unit,
+      0,
+    );
   }
 
   readClockText() {
@@ -136,8 +178,8 @@ export class Scene {
     const phase = this.page.dataset.phase || "link";
     if (phase === this.phase) return;
     this.phase = phase;
-    this.backdrop.setGain(VIDEO_GAIN_BY_PHASE[phase] ?? 1);
     this.fogTarget = FOG_BY_PHASE[phase] ?? 0.012;
+    this.spiralDimTarget = SPIRAL_DIM_BY_PHASE[phase] ?? 0;
     this.particleTarget = PARTICLE_OPACITY_BY_PHASE[phase] ?? 0.26;
   }
 
@@ -149,10 +191,8 @@ export class Scene {
     this.renderer.setSize(width, height, false);
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
-    this.ripple.resize(width, height, this.pixelRatio);
     this.enter.setPixelRatio(this.pixelRatio);
-    this.backdrop.setRipple(this.ripple.texture, this.ripple.texel);
-    this.backdrop.resize(this.camera);
+    this.enter.layout(this.camera, this.page);
     if (this.clock.unit) {
       this.clock.measure(this.camera);
       this.clock.set(this.readClockText(), { full: true });
@@ -199,7 +239,6 @@ export class Scene {
 
     // Locked means the wheel is swallowed. Coming back out is deliberate: a
     // paused session needs a real upward flick, which is also what R does.
-    this.scroll.setEnabled(this.lock < 0.001);
     if (this.lockTarget === 1) this.scroll.rewind();
   }
 
@@ -220,23 +259,49 @@ export class Scene {
     this.syncPhase();
     this.syncMode(dt);
 
+    // The intro holds the page shut: no scrolling past a card you have not
+    // taken off the hook.
+    this.introTarget = this.introTarget ?? 1;
+    const introRate = this.introTarget < this.intro ? 2.2 : 6;
+    this.intro += (this.introTarget - this.intro) * (1 - Math.exp(-dt * introRate));
+    if (this.intro < 0.01) this.intro = 0;
+    this.lanyard.step(dt);
+    this.lanyard.setOpacity(this.intro);
+    this.scroll.setEnabled(this.lock < 0.001 && this.intro < 0.02);
+    this.page.style.setProperty("--intro", this.intro.toFixed(3));
+
     const progress = this.scroll.update(dt);
     const folded = easeInOut(this.lock);
-    const worldOpacity = 1 - folded;
+    // The intro closes the world down as firmly as a running session does.
+    const worldOpacity = (1 - folded) * (1 - this.intro);
 
     // The world slides past a camera that is pulled back to the top as the
-    // session takes over; the clock is parented to the camera, so it never
-    // moves through any of this.
+    // session takes over. The clock sits in the interface's own layout, so none
+    // of this moves it.
     this.camera.position.z =
       this.cameraZFor(progress) * worldOpacity + CAMERA_Z.start * folded;
 
     // The surface recedes as the descent goes on, so the gates are not
-    // competing with the footage for the frame.
-    this.backdrop.setDescent(progress * worldOpacity * 0.82);
-
     this.gates.opacity = worldOpacity;
     this.gates.update(dt, this.camera.position.z);
-    this.enter.update(dt, inverseLerp(...SECTIONS.enter, progress) * worldOpacity, worldOpacity);
+    const arrival = inverseLerp(...SECTIONS.enter, progress) * worldOpacity;
+    this.enter.update(dt, arrival, worldOpacity);
+
+    // The console belongs to the bottom of the descent, where LOCK-IN is.
+    const consoleIn = this.lock > 0.5 ? 1 : arrival;
+    this.page.style.setProperty("--console-in", consoleIn.toFixed(3));
+    this.page.style.setProperty("--console-events", consoleIn > 0.6 ? "auto" : "none");
+
+    // Squares up around LOCK-IN when the pointer is over it; orbits otherwise.
+    const rect = this.enter.screenRect(this.camera, window.innerWidth, window.innerHeight);
+    const overEnter =
+      rect &&
+      this.cursor.pointer.x >= rect.left &&
+      this.cursor.pointer.x <= rect.right &&
+      this.cursor.pointer.y >= rect.top &&
+      this.cursor.pointer.y <= rect.bottom;
+    this.cursor.setTarget(overEnter ? rect : null);
+    this.cursor.update(dt);
 
     // Lets globals.css stand the HUD down while the reader is inside the scene.
     this.page.style.setProperty("--explore", (progress * worldOpacity).toFixed(4));
@@ -248,23 +313,26 @@ export class Scene {
     if (this.fogTarget !== undefined) this.approach(uniforms.uFogDensity, this.fogTarget, dt);
     if (this.particleTarget !== undefined) this.approach(uniforms.uOpacity, this.particleTarget, dt);
 
-    // A reset winds the clock back to 00:00; that deserves the full reform.
-    const text = this.readClockText();
-    this.clock.set(text, { full: text === "00:00" && this.clock.text !== "" });
+    // The clock arrives with the session. It re-forms from scatter the first
+    // time the timer starts, and again after a reset.
+    const started = this.page.dataset.started === "true";
+    if (started !== this.started) {
+      this.started = started;
+      if (started) this.clock.set(this.readClockText(), { full: true });
+    }
+    this.clock.setPresence(started ? 1 : 0, dt);
+    this.clock.set(this.readClockText());
+    this.clock.update(dt, this.pixelRatio);
 
-    this.backdrop.update(dt);
     this.particles.update(dt, {
       mouse: this.mouse,
       pixelRatio: this.pixelRatio,
       cameraZ: this.camera.position.z,
     });
-    this.clock.update(dt, this.pixelRatio);
 
-    // The displacement field first, into its own target; the backdrop samples
-    // it. The pass skips itself entirely once every ripple has died.
-    this.ripple.update(dt);
-    this.ripple.render(this.renderer);
-    this.renderer.setClearColor(0x000000, 1);
+    this.spiralDim = (this.spiralDim ?? 0) +
+      ((this.spiralDimTarget ?? 0) - (this.spiralDim ?? 0)) * (1 - Math.exp(-dt * 0.6));
+    this.spiral.update(dt, progress, Math.max(folded, this.spiralDim));
     this.renderer.render(this.scene, this.camera);
   };
 
@@ -274,13 +342,16 @@ export class Scene {
     window.removeEventListener("pointermove", this.onPointerMove);
     window.removeEventListener("pointerleave", this.onPointerLeave);
     window.removeEventListener("click", this.onClick);
+    window.removeEventListener("pointerdown", this.onPointerDown);
+    window.removeEventListener("pointerup", this.onPointerUp);
     this.scroll.detach();
+    this.cursor.dispose();
+    this.spiral.dispose();
     this.particles.dispose();
     this.clock.dispose();
-    this.ripple.dispose();
+    this.lanyard.dispose();
     this.gates.dispose();
     this.enter.dispose();
-    this.backdrop.dispose();
     this.renderer.dispose();
   }
 }

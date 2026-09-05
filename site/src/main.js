@@ -33,6 +33,10 @@ async function boot() {
   });
 
   const page = document.querySelector(".focus-page");
+  const hint = document.createElement("div");
+  hint.className = "intro-hint";
+  hint.textContent = "拉下工牌";
+  page.append(hint);
   const canvas = document.createElement("canvas");
   canvas.className = "gl-scene";
   canvas.setAttribute("aria-hidden", "true");

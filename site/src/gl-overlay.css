@@ -15,10 +15,7 @@
    interference bursts — it just stops being composited.
    Scoped to [data-gl=on] so any failure before that leaves the CSS build's own
    layers in place. */
-.focus-page[data-gl="on"] .focus-video,
-.focus-page[data-gl="on"] .cinema-shade {
-  opacity: 0;
-}
+.focus-page[data-gl="on"] .focus-video { opacity: 0; }
 
 /* The clock is drawn as particles in the canvas. The element stays for layout
    and for the accessibility tree — its own ink, and the CSS fracture layers
@@ -53,4 +50,163 @@
 
 .focus-page[data-gl="on"] .console {
   pointer-events: auto;
+}
+
+/* Target cursor. The brackets orbit the pointer until something is hoverable,
+   then square up around it. Difference blending keeps them legible on both the
+   lit footage and the black. */
+.target-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+  mix-blend-mode: difference;
+  opacity: 0;
+  transition: opacity .25s ease;
+}
+
+.target-cursor.is-visible { opacity: 1; }
+
+.target-cursor__dot {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  background: #fff;
+  border-radius: 50%;
+}
+
+.target-cursor__corner {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 3px solid #fff;
+}
+
+.target-cursor__corner--tl { border-right: 0; border-bottom: 0; }
+.target-cursor__corner--tr { border-left: 0; border-bottom: 0; }
+.target-cursor__corner--br { border-left: 0; border-top: 0; }
+.target-cursor__corner--bl { border-right: 0; border-top: 0; }
+
+/* Hidden while a pointing device is driving, so the brackets are the cursor. */
+@media (hover: hover) and (pointer: fine) {
+  .focus-page[data-gl="on"],
+  .focus-page[data-gl="on"] * { cursor: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .target-cursor { display: none; }
+  @media (hover: hover) and (pointer: fine) {
+    .focus-page[data-gl="on"],
+    .focus-page[data-gl="on"] * { cursor: auto; }
+  }
+}
+
+/* The console is the instrument's, not the scene's: it belongs at the bottom of
+   the descent where LOCK-IN is, and nowhere else. --console-in is written by
+   the renderer. */
+.focus-page[data-gl="on"] { --console-in: 0; }
+
+.focus-page[data-gl="on"] .console,
+.focus-page[data-gl="on"] .bottom-note {
+  opacity: var(--console-in);
+  transform: translateX(-50%) translateY(calc((1 - var(--console-in)) * 18px));
+  pointer-events: var(--console-events, none);
+  transition: opacity .35s ease;
+}
+
+.focus-page[data-gl="on"] .bottom-note {
+  transform: translateY(calc((1 - var(--console-in)) * 12px));
+}
+
+/* The engine still writes the time here and it is the accessible clock, so the
+   element keeps its place in the layout — the particle glyphs are sampled from
+   its box. Only its own ink steps aside. */
+.focus-page[data-gl="on"] .focus-clock {
+  color: transparent;
+  -webkit-text-stroke-color: transparent;
+  text-shadow: none;
+}
+
+.focus-page[data-gl="on"] .focus-clock::before,
+.focus-page[data-gl="on"] .focus-clock::after {
+  display: none;
+}
+
+
+/* The spiral background. It sits behind everything, including the canvas, and
+   is graded down so the interface's amber still reads as the brightest thing
+   on screen. */
+.focus-page[data-gl="on"] .spiral {
+  position: absolute;
+  inset: 0;
+  z-index: -6;
+  overflow: hidden;
+  pointer-events: none;
+  transform-style: preserve-3d;
+}
+
+.focus-page[data-gl="on"] .spiral__card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 124px;
+  height: 124px;
+  border-radius: 2px;
+  background-position: center;
+  background-size: cover;
+  filter: brightness(.4) saturate(.5) contrast(1.06);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, .72);
+  will-change: transform, opacity;
+}
+
+/* A bed under the middle of the frame. .cinema-shade darkens outward, which is
+   the wrong direction for this: the clock and the aperture sit dead centre,
+   which is exactly where a card in the helix passes behind them. */
+.focus-page[data-gl="on"] .spiral::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2000;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 58% 44% at 50% 44%,
+    rgba(4, 2, 0, .82),
+    rgba(4, 2, 0, .5) 55%,
+    transparent 100%
+  );
+}
+
+/* The video is no longer composited — it stays loaded only because the engine
+   samples it for the interference bursts. The shade grades the spiral now. */
+.focus-page[data-gl="on"] .cinema-shade { opacity: 1; }
+
+/* The opening holds the interface back until the card is off the hook. */
+.focus-page[data-gl="on"] { --intro: 1; }
+
+.focus-page[data-gl="on"] .top-line,
+.focus-page[data-gl="on"] .reticle,
+.focus-page[data-gl="on"] .side-mark,
+.focus-page[data-gl="on"] .clock-area,
+.focus-page[data-gl="on"] .spiral {
+  opacity: calc(1 - var(--intro));
+}
+
+.focus-page[data-gl="on"] .intro-hint {
+  position: absolute;
+  z-index: 8;
+  left: 0;
+  right: 0;
+  bottom: 12%;
+  text-align: center;
+  color: var(--muted);
+  font-family: Tektur, monospace;
+  font-size: 11px;
+  letter-spacing: .3em;
+  pointer-events: none;
+  opacity: calc(var(--intro) * .8);
+  transition: opacity .4s ease;
 }
