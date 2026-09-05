@@ -33,3 +33,24 @@
 .focus-page[data-gl="on"] .focus-clock::after {
   display: none;
 }
+
+/* While the reader is inside the scene, the HUD stands down: the clock is the
+   only thing that belongs to both modes. --explore is written by the renderer,
+   0 at the top and 1 at the bottom of the descent, and back to 0 the moment the
+   timer takes over. */
+.focus-page[data-gl="on"] {
+  --explore: 0;
+}
+
+.focus-page[data-gl="on"] .reticle,
+.focus-page[data-gl="on"] .side-mark,
+.focus-page[data-gl="on"] .clock-caption,
+.focus-page[data-gl="on"] .clock-baseline,
+.focus-page[data-gl="on"] .console,
+.focus-page[data-gl="on"] .bottom-note {
+  opacity: calc(1 - var(--explore) * 1.6);
+}
+
+.focus-page[data-gl="on"] .console {
+  pointer-events: auto;
+}

@@ -15,7 +15,7 @@ import * as THREE from "three";
  * minute.
  */
 const SLOTS_PER_CELL = 1400;
-const DENSITY = 3; // pixel sampling step, in CSS px
+const DENSITY = 3; // preferred pixel sampling step, in CSS px
 const PARTICLE_SIZE = 2.2;
 const SCATTER = 190;
 const REPEL_RADIUS = 120;
@@ -43,6 +43,7 @@ const VERT = /* glsl */ `
   uniform float uRepelStrength;
   uniform float uSize;
   uniform float uPixelRatio;
+  uniform float uTear;
 
   out float vSeed;
   out float vActive;
@@ -60,6 +61,10 @@ const VERT = /* glsl */ `
       sin(uTime * 0.8 + aSeed.x * 6.283),
       cos(uTime * 0.7 + aSeed.y * 6.283)
     ) * uDrift;
+
+    // Travel smears the field sideways — the particle equivalent of the RGB
+    // split the reference site drives from pointer speed.
+    local.x += (aSeed.y - 0.5) * uTear;
 
     vec2 away = local.xy - uPointer;
     float distance = length(away);
@@ -140,6 +145,7 @@ export class ClockParticles {
         uRepelStrength: { value: 0 },
         uSize: { value: PARTICLE_SIZE },
         uPixelRatio: { value: 1 },
+        uTear: { value: 0 },
         uColor: { value: new THREE.Color(0xf4b65c) },
         uHighlight: { value: new THREE.Color(0xea4d32) },
         uOpacity: { value: 0.92 },
@@ -202,7 +208,39 @@ export class ClockParticles {
 
     this.sampler.width = Math.ceil(Math.max(...this.cellWidths)) + 8;
     this.sampler.height = Math.ceil(this.cellHeight) + 8;
+    this.step = this.chooseStep();
     this.text = "";
+  }
+
+  /**
+   * The preferred 3px step keeps particle density constant in CSS pixels, but
+   * the sample count grows with the square of the font size: at the clamp's
+   * 290px ceiling a digit wants roughly 1900 samples against a 1400-slot
+   * budget. The sampling loop used to simply stop once it ran out of slots,
+   * which sheared the bottom off every glyph at wide viewports and when the
+   * browser was zoomed out. Widen the step instead, so a glyph is always
+   * sampled whole.
+   */
+  chooseStep() {
+    const context = this.samplerContext;
+    const { width, height } = this.sampler;
+    context.clearRect(0, 0, width, height);
+    context.font = this.font;
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillStyle = "#fff";
+    // 8 is the densest digit, so it sets the budget for every cell.
+    context.fillText("8", width / 2, height / 2);
+
+    const pixels = context.getImageData(0, 0, width, height).data;
+    let count = 0;
+    for (let y = 0; y < height; y += DENSITY) {
+      for (let x = 0; x < width; x += DENSITY) {
+        if (pixels[(y * width + x) * 4 + 3] >= 128) count += 1;
+      }
+    }
+    if (count <= SLOTS_PER_CELL) return DENSITY;
+    return Math.ceil(DENSITY * Math.sqrt(count / SLOTS_PER_CELL));
   }
 
   /** Samples one character into the world-space targets of its slot range. */
@@ -220,10 +258,11 @@ export class ClockParticles {
     const base = index * SLOTS_PER_CELL;
     const originX = this.centre.x + this.cellOffsets[index];
     const originY = this.centre.y;
+    const step = this.step || DENSITY;
     let slot = 0;
 
-    for (let y = 0; y < height && slot < SLOTS_PER_CELL; y += DENSITY) {
-      for (let x = 0; x < width && slot < SLOTS_PER_CELL; x += DENSITY) {
+    for (let y = 0; y < height && slot < SLOTS_PER_CELL; y += step) {
+      for (let x = 0; x < width && slot < SLOTS_PER_CELL; x += step) {
         if (pixels[(y * width + x) * 4 + 3] < 128) continue;
         const screenX = originX + (x - width / 2);
         const screenY = originY + (y - height / 2);
@@ -283,6 +322,11 @@ export class ClockParticles {
       : STAGGER_FRACTION.tick;
   }
 
+  /** `amount` is roughly 0..2, in the same units the reference clamps to. */
+  setTear(amount) {
+    this.tear = Number.isFinite(amount) ? Math.min(2, Math.max(0, amount)) : 0;
+  }
+
   setPointer(clientX, clientY) {
     if (!this.unit) return;
     this.pointer.set(
@@ -300,6 +344,14 @@ export class ClockParticles {
     uniforms.uTime.value += dt;
     uniforms.uPixelRatio.value = pixelRatio;
     uniforms.uPointer.value.copy(this.pointer);
+    // This feeds gl_Position: one non-finite frame would latch through the
+    // smoothing and erase the clock for the rest of the session, so the
+    // accumulator is checked rather than trusted.
+    // 2 is the clamp ceiling, so this tops out at ~24px of smear.
+    const tear = (this.tear ?? 0) * 12 * (this.unit ?? 0);
+    if (!Number.isFinite(uniforms.uTear.value)) uniforms.uTear.value = 0;
+    const rate = Number.isFinite(dt) ? 1 - Math.exp(-dt * 10) : 1;
+    uniforms.uTear.value += (tear - uniforms.uTear.value) * rate;
     if (this.morph < 1) {
       this.morph = Math.min(1, this.morph + dt / this.morphDuration);
       uniforms.uMorph.value = this.morph;
