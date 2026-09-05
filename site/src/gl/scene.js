@@ -4,7 +4,7 @@ import { Backdrop } from "./backdrop.js";
 import { ClockParticles } from "./clock-particles.js";
 import { RippleField } from "./ripple.js";
 import { Gates } from "./gates.js";
-import { EnterPlate } from "./enter.js";
+import { EnterParticles } from "./enter.js";
 import { VirtualScroll, SECTIONS, CAMERA_Z, inverseLerp } from "../scroll.js";
 
 const FOV = 32;
@@ -41,13 +41,12 @@ export class Scene {
     this.camera.position.z = CAMERA_Z.start;
 
     this.backdrop = new Backdrop(video, page.querySelector("video")?.getAttribute("poster"));
-    this.scene.add(this.backdrop.mesh);
 
     this.gates = new Gates();
     this.scene.add(this.gates.group);
 
-    this.enter = new EnterPlate();
-    this.scene.add(this.enter.mesh);
+    this.enter = new EnterParticles();
+    this.scene.add(this.enter.group);
 
     this.scroll = new VirtualScroll();
     this.raycaster = new THREE.Raycaster();
@@ -67,6 +66,7 @@ export class Scene {
     // the scene — later phases move the world past it, never the number.
     this.clock = new ClockParticles(page.querySelector(".focus-clock"));
     this.camera.add(this.clock.points);
+    this.camera.add(this.backdrop.mesh);
     this.scene.add(this.camera);
 
     this.clockElement = page.querySelector(".focus-clock");
@@ -92,13 +92,13 @@ export class Scene {
       this.clock.clearPointer();
     };
     this.onClick = (event) => {
-      if (this.lockTarget === 1 || !this.enter.mesh.visible) return;
+      if (this.lockTarget === 1 || !this.enter.group.visible) return;
       this.pointerNdc.set(
         (event.clientX / window.innerWidth) * 2 - 1,
         -((event.clientY / window.innerHeight) * 2 - 1),
       );
       this.raycaster.setFromCamera(this.pointerNdc, this.camera);
-      if (this.raycaster.intersectObject(this.enter.mesh, false).length === 0) return;
+      if (this.raycaster.intersectObject(this.enter.hit, false).length === 0) return;
       this.page.querySelector(".play-button")?.click();
     };
     this.onResize = () => this.resize();
@@ -122,6 +122,7 @@ export class Scene {
     void document.fonts.ready.then(() => {
       this.clock.measure(this.camera);
       this.clock.set(this.readClockText(), { full: true });
+      this.enter.build();
     });
   }
 
@@ -149,8 +150,9 @@ export class Scene {
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
     this.ripple.resize(width, height, this.pixelRatio);
+    this.enter.setPixelRatio(this.pixelRatio);
     this.backdrop.setRipple(this.ripple.texture, this.ripple.texel);
-    this.backdrop.resize(this.camera, CAMERA_Z.start);
+    this.backdrop.resize(this.camera);
     if (this.clock.unit) {
       this.clock.measure(this.camera);
       this.clock.set(this.readClockText(), { full: true });
