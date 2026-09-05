@@ -16,11 +16,12 @@
 .preview-indicator{font-size:12px;letter-spacing:.08em;color:var(--amber);opacity:.65}
 .fullscreen-button{border:0;background:none;color:var(--muted);width:44px;height:44px;padding:12px}.fullscreen-button svg{width:20px;fill:none;stroke:currentColor;stroke-width:1.3}
 .fullscreen-button:hover{color:var(--amber)}
-.reticle{position:absolute;top:44%;left:50%;width:min(62vh,580px);aspect-ratio:1;transform:translate(-50%,-50%);z-index:1;pointer-events:none;opacity:.63;transition:opacity 1s}
-.reticle svg{width:100%;height:100%;overflow:visible;fill:none;stroke:var(--amber);stroke-width:.65}
-.orbit-ticks{stroke-dasharray:1 14;stroke-width:4;opacity:.31;transform-origin:center}
-.orbit-inner{opacity:.12;stroke-dasharray:170 50 4 30}.crosshair{opacity:.3}
-.orbit-progress{stroke-dasharray:100;stroke-dashoffset:calc(100 - var(--progress)*100);stroke-width:1.6;transform:rotate(-90deg);transform-origin:center;opacity:.7;transition:stroke-dashoffset 1s linear}
+.reticle{position:absolute;top:44%;left:50%;width:min(62vh,580px);aspect-ratio:1;transform:translate(-50%,-50%);z-index:1;pointer-events:none;opacity:.63;transition:opacity 1s;filter:drop-shadow(0 0 14px rgba(244,182,92,.28))}
+.reticle svg{width:100%;height:100%;overflow:visible;fill:none;stroke:var(--amber);stroke-width:1.1}
+.orbit-ticks{stroke-dasharray:1 14;stroke-width:5;opacity:.55;transform-origin:center}
+.orbit-inner{opacity:.3;stroke-dasharray:170 50 4 30}.crosshair{opacity:.5}
+.orbit-progress{stroke-dasharray:100;stroke-dashoffset:calc(100 - var(--progress)*100);stroke-width:2.4;transform:rotate(-90deg);transform-origin:center;opacity:.7;transition:stroke-dashoffset 1s linear}
+.focus-page[data-started=false] .reticle{opacity:1}.focus-page[data-started=false] .orbit-inner{opacity:.46}.focus-page[data-started=false] .orbit-ticks{opacity:.72}
 .focus-page[data-running=true] .orbit-ticks{animation:orbit 180s linear infinite}
 .reticle-top,.reticle-bottom{position:absolute;left:0;right:0;text-align:center;color:var(--muted);font-size:10px;letter-spacing:.28em;white-space:nowrap}
 .reticle-top{top:11%}.reticle-bottom{bottom:10%}

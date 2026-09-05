@@ -7,12 +7,15 @@ import * as THREE from "three";
  * it — the gather is what says "this is a control", so a border would only be
  * describing what the motion already does.
  */
+const LABEL = "LOCK-IN";
 const DEPTH = -15;
-const OFFSET_Y = -0.55;
-const TARGET_WIDTH = 1.55; // world units, read from ~3.5 units out
-const FONT_SIZE = 132;
+// The camera's resting depth at the bottom of the descent. Sizing against a
+// fixed distance keeps the word the same size on screen however it got there.
+const READ_FROM = -11.5;
+const FONT_SIZE = 118;
+const MARGIN = 18; // CSS px kept clear of the clock above and the console below
 const STEP = 3;
-const SCATTER = 1.1; // world units
+const SCATTER = 0.5; // as a share of the word's width
 const PARTICLE_SIZE = 2.2;
 
 const VERT = /* glsl */ `
@@ -68,7 +71,7 @@ const FRAG = /* glsl */ `
 export class EnterParticles {
   constructor() {
     this.group = new THREE.Group();
-    this.group.position.set(0, OFFSET_Y, DEPTH);
+    this.group.position.set(0, 0, DEPTH);
     this.reveal = 0;
 
     this.material = new THREE.RawShaderMaterial({
@@ -93,8 +96,9 @@ export class EnterParticles {
 
     // Points are awkward to raycast; an invisible quad over the same area is
     // what the click actually tests against.
+    // Unit-sized; layout() scales the whole group, so this tracks the word.
     this.hit = new THREE.Mesh(
-      new THREE.PlaneGeometry(TARGET_WIDTH * 1.25, 0.75),
+      new THREE.PlaneGeometry(1.16, 1),
       new THREE.MeshBasicMaterial({ visible: false }),
     );
     this.group.add(this.hit);
@@ -108,10 +112,11 @@ export class EnterParticles {
     const canvas = document.createElement("canvas");
     const context = canvas.getContext("2d", { willReadFrequently: true });
     const font = `600 ${FONT_SIZE}px Tektur, "PingFang SC", sans-serif`;
+    const tracking = `${Math.round(FONT_SIZE * 0.1)}px`;
 
     context.font = font;
-    context.letterSpacing = `${Math.round(FONT_SIZE * 0.14)}px`;
-    const metrics = context.measureText("开始");
+    context.letterSpacing = tracking;
+    const metrics = context.measureText(LABEL);
     const width = Math.ceil(metrics.width) + 24;
     const height = Math.ceil(FONT_SIZE * 1.5);
 
@@ -119,20 +124,41 @@ export class EnterParticles {
     canvas.height = height;
     // Sizing the canvas resets the context, so the font is set again.
     context.font = font;
-    context.letterSpacing = `${Math.round(FONT_SIZE * 0.14)}px`;
+    context.letterSpacing = tracking;
     context.textAlign = "center";
     context.textBaseline = "middle";
     context.fillStyle = "#fff";
-    context.fillText("开始", width / 2, height / 2);
+    context.fillText(LABEL, width / 2, height / 2);
 
     const pixels = context.getImageData(0, 0, width, height).data;
-    const unit = TARGET_WIDTH / width;
-    const targets = [];
+    const sampled = [];
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
     for (let y = 0; y < height; y += STEP) {
       for (let x = 0; x < width; x += STEP) {
         if (pixels[(y * width + x) * 4 + 3] < 128) continue;
-        targets.push((x - width / 2) * unit, (height / 2 - y) * unit, 0);
+        sampled.push(x, y);
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
       }
+    }
+
+    // Normalised to the ink's own box, one unit wide: the group's scale then
+    // sets the size and the word is centred by construction, whatever padding
+    // the rasteriser left around it.
+    const inkWidth = Math.max(1, maxX - minX);
+    const inkHeight = Math.max(1, maxY - minY);
+    this.aspect = inkHeight / inkWidth;
+    const centreX = (minX + maxX) / 2;
+    const centreY = (minY + maxY) / 2;
+
+    const targets = [];
+    for (let i = 0; i < sampled.length; i += 2) {
+      targets.push((sampled[i] - centreX) / inkWidth, (centreY - sampled[i + 1]) / inkWidth, 0);
     }
 
     const count = targets.length / 3;
@@ -144,7 +170,7 @@ export class EnterParticles {
       const radius = (0.3 + Math.random() * 0.7) * SCATTER;
       from[i * 3] = position[i * 3] + Math.cos(angle) * radius;
       from[i * 3 + 1] = position[i * 3 + 1] + Math.sin(angle) * radius;
-      from[i * 3 + 2] = (Math.random() - 0.5) * 1.4;
+      from[i * 3 + 2] = (Math.random() - 0.5) * 0.9;
       seed[i * 2] = Math.random();
       seed[i * 2 + 1] = Math.random();
     }
@@ -157,6 +183,32 @@ export class EnterParticles {
     this.points = new THREE.Points(geometry, this.material);
     this.points.frustumCulled = false;
     this.group.add(this.points);
+  }
+
+  /**
+   * Fits the word into the gap the interface leaves between the clock and the
+   * console. Guessing a fixed offset put it straight through the controls at
+   * one viewport and left a hole at another; the DOM already knows where the
+   * free band is, so it decides.
+   */
+  layout(camera, page) {
+    if (!this.points) return;
+    const height = window.innerHeight;
+    const distance = Math.abs(DEPTH - READ_FROM);
+    const unit = (2 * distance * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2)) / height;
+
+    const above = page.querySelector(".clock-area")?.getBoundingClientRect().bottom ?? height * 0.55;
+    const below = page.querySelector(".console")?.getBoundingClientRect().top ?? height * 0.9;
+    const top = above + MARGIN;
+    const bottom = Math.max(top + 40, below - MARGIN);
+
+    const bandHeight = (bottom - top) * unit;
+    const maxWidth = window.innerWidth * 0.62 * unit;
+    const worldWidth = Math.min(maxWidth, bandHeight / Math.max(this.aspect, 0.001));
+
+    this.group.scale.setScalar(worldWidth);
+    this.group.position.y = -((top + bottom) / 2 - height / 2) * unit;
+    this.hit.scale.set(1, Math.max(this.aspect * 1.5, 0.5), 1);
   }
 
   /** `arrival` is how far into the last section the camera has come, 0..1. */
@@ -172,6 +224,38 @@ export class EnterParticles {
 
   setPixelRatio(pixelRatio) {
     this.material.uniforms.uPixelRatio.value = pixelRatio;
+  }
+
+  /**
+   * Screen rectangle of the hit area, for the target cursor to square up
+   * around. Null when the word is not on screen.
+   */
+  screenRect(camera, width, height) {
+    if (!this.group.visible) return null;
+    const halfWidth = this.hit.geometry.parameters.width / 2;
+    const halfHeight = this.hit.geometry.parameters.height / 2;
+    let left = Infinity;
+    let top = Infinity;
+    let right = -Infinity;
+    let bottom = -Infinity;
+
+    for (const [sx, sy] of [
+      [-1, -1],
+      [1, -1],
+      [1, 1],
+      [-1, 1],
+    ]) {
+      const corner = new THREE.Vector3(sx * halfWidth, sy * halfHeight, 0);
+      this.hit.localToWorld(corner);
+      corner.project(camera);
+      const x = (corner.x * 0.5 + 0.5) * width;
+      const y = (-corner.y * 0.5 + 0.5) * height;
+      left = Math.min(left, x);
+      right = Math.max(right, x);
+      top = Math.min(top, y);
+      bottom = Math.max(bottom, y);
+    }
+    return { left, top, right, bottom };
   }
 
   dispose() {

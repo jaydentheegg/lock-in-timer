@@ -6,6 +6,7 @@ import { RippleField } from "./ripple.js";
 import { Gates } from "./gates.js";
 import { EnterParticles } from "./enter.js";
 import { VirtualScroll, SECTIONS, CAMERA_Z, inverseLerp } from "../scroll.js";
+import { TargetCursor } from "../target-cursor.js";
 
 const FOV = 32;
 const DPR_CAP = 2;
@@ -49,6 +50,7 @@ export class Scene {
     this.scene.add(this.enter.group);
 
     this.scroll = new VirtualScroll();
+    this.cursor = new TargetCursor();
     this.raycaster = new THREE.Raycaster();
     this.pointerNdc = new THREE.Vector2();
 
@@ -112,6 +114,7 @@ export class Scene {
     window.addEventListener("pointerleave", this.onPointerLeave);
     window.addEventListener("click", this.onClick);
     this.scroll.attach();
+    this.cursor.attach();
     this.ripple.attach();
     this.resize();
     this.frameClock.start();
@@ -123,6 +126,7 @@ export class Scene {
       this.clock.measure(this.camera);
       this.clock.set(this.readClockText(), { full: true });
       this.enter.build();
+      this.enter.layout(this.camera, this.page);
     });
   }
 
@@ -151,6 +155,7 @@ export class Scene {
     this.camera.updateProjectionMatrix();
     this.ripple.resize(width, height, this.pixelRatio);
     this.enter.setPixelRatio(this.pixelRatio);
+    this.enter.layout(this.camera, this.page);
     this.backdrop.setRipple(this.ripple.texture, this.ripple.texel);
     this.backdrop.resize(this.camera);
     if (this.clock.unit) {
@@ -236,7 +241,24 @@ export class Scene {
 
     this.gates.opacity = worldOpacity;
     this.gates.update(dt, this.camera.position.z);
-    this.enter.update(dt, inverseLerp(...SECTIONS.enter, progress) * worldOpacity, worldOpacity);
+    const arrival = inverseLerp(...SECTIONS.enter, progress) * worldOpacity;
+    this.enter.update(dt, arrival, worldOpacity);
+
+    // The console belongs to the bottom of the descent, where LOCK-IN is.
+    const consoleIn = this.lock > 0.5 ? 1 : arrival;
+    this.page.style.setProperty("--console-in", consoleIn.toFixed(3));
+    this.page.style.setProperty("--console-events", consoleIn > 0.6 ? "auto" : "none");
+
+    // Squares up around LOCK-IN when the pointer is over it; orbits otherwise.
+    const rect = this.enter.screenRect(this.camera, window.innerWidth, window.innerHeight);
+    const overEnter =
+      rect &&
+      this.cursor.pointer.x >= rect.left &&
+      this.cursor.pointer.x <= rect.right &&
+      this.cursor.pointer.y >= rect.top &&
+      this.cursor.pointer.y <= rect.bottom;
+    this.cursor.setTarget(overEnter ? rect : null);
+    this.cursor.update(dt);
 
     // Lets globals.css stand the HUD down while the reader is inside the scene.
     this.page.style.setProperty("--explore", (progress * worldOpacity).toFixed(4));
@@ -275,6 +297,7 @@ export class Scene {
     window.removeEventListener("pointerleave", this.onPointerLeave);
     window.removeEventListener("click", this.onClick);
     this.scroll.detach();
+    this.cursor.dispose();
     this.particles.dispose();
     this.clock.dispose();
     this.ripple.dispose();

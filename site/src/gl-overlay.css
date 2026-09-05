@@ -54,3 +54,73 @@
 .focus-page[data-gl="on"] .console {
   pointer-events: auto;
 }
+
+/* Target cursor. The brackets orbit the pointer until something is hoverable,
+   then square up around it. Difference blending keeps them legible on both the
+   lit footage and the black. */
+.target-cursor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  z-index: 2147483647;
+  pointer-events: none;
+  mix-blend-mode: difference;
+  opacity: 0;
+  transition: opacity .25s ease;
+}
+
+.target-cursor.is-visible { opacity: 1; }
+
+.target-cursor__dot {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  margin: -2px 0 0 -2px;
+  background: #fff;
+  border-radius: 50%;
+}
+
+.target-cursor__corner {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border: 3px solid #fff;
+}
+
+.target-cursor__corner--tl { border-right: 0; border-bottom: 0; }
+.target-cursor__corner--tr { border-left: 0; border-bottom: 0; }
+.target-cursor__corner--br { border-left: 0; border-top: 0; }
+.target-cursor__corner--bl { border-right: 0; border-top: 0; }
+
+/* Hidden while a pointing device is driving, so the brackets are the cursor. */
+@media (hover: hover) and (pointer: fine) {
+  .focus-page[data-gl="on"],
+  .focus-page[data-gl="on"] * { cursor: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .target-cursor { display: none; }
+  @media (hover: hover) and (pointer: fine) {
+    .focus-page[data-gl="on"],
+    .focus-page[data-gl="on"] * { cursor: auto; }
+  }
+}
+
+/* The console is the instrument's, not the scene's: it belongs at the bottom of
+   the descent where LOCK-IN is, and nowhere else. --console-in is written by
+   the renderer. */
+.focus-page[data-gl="on"] { --console-in: 0; }
+
+.focus-page[data-gl="on"] .console,
+.focus-page[data-gl="on"] .bottom-note {
+  opacity: var(--console-in);
+  transform: translateX(-50%) translateY(calc((1 - var(--console-in)) * 18px));
+  pointer-events: var(--console-events, none);
+  transition: opacity .35s ease;
+}
+
+.focus-page[data-gl="on"] .bottom-note {
+  transform: translateY(calc((1 - var(--console-in)) * 12px));
+}
