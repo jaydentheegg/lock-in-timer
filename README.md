@@ -1,4 +1,4 @@
-# wymcxvsure
+# Timer
 
 **Website:** [https://jaydentheegg.github.io/wymcxvsure/](https://jaydentheegg.github.io/wymcxvsure/)
 

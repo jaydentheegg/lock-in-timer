@@ -1,0 +1,35 @@
+/* The only styling this build adds. Everything else comes from globals.css,
+   which it shares with the React view and the Pages fallback. */
+
+.gl-scene {
+  position: absolute;
+  inset: 0;
+  z-index: -5;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* The footage and the shade are drawn in the canvas once the scene is up. The
+   video element itself keeps playing — the engine samples it for the
+   interference bursts — it just stops being composited.
+   Scoped to [data-gl=on] so any failure before that leaves the CSS build's own
+   layers in place. */
+.focus-page[data-gl="on"] .focus-video,
+.focus-page[data-gl="on"] .cinema-shade {
+  opacity: 0;
+}
+
+/* The clock is drawn as particles in the canvas. The element stays for layout
+   and for the accessibility tree — its own ink, and the CSS fracture layers
+   that used to sit on it, step aside. */
+.focus-page[data-gl="on"] .focus-clock {
+  color: transparent;
+  -webkit-text-stroke-color: transparent;
+  text-shadow: none;
+}
+
+.focus-page[data-gl="on"] .focus-clock::before,
+.focus-page[data-gl="on"] .focus-clock::after {
+  display: none;
+}
