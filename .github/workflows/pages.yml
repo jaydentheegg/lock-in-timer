@@ -5,10 +5,14 @@ on:
   push:
     branches:
       - main
-      - agent/landscape-study-mode
     paths:
+      - "site/**"
+      - "lib/**"
+      - "app/globals.css"
+      - "scripts/sync-pages.mjs"
       - "github-pages/**"
-      - "public/study-background.mp4"
+      - "public/study-loop.mp4"
+      - "public/study-loop.av1.mp4"
       - "public/study-audio.m4a"
       - "public/study-poster.jpg"
       - "public/empty-captions.vtt"
@@ -35,15 +39,48 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+
+      - name: Install
+        run: npm ci
+        working-directory: site
+
+      - name: Build WebGL site
+        run: npm run build
+        working-directory: site
+
+      # github-pages/ is generated from lib/ and app/globals.css; regenerating
+      # here keeps a stale commit from shipping a fallback that has drifted.
+      - name: Sync the CSS fallback
+        run: node scripts/sync-pages.mjs
+
       - name: Configure Pages
         uses: actions/configure-pages@v6
 
       - name: Assemble static site
         run: |
           mkdir _site
-          cp github-pages/index.html github-pages/styles.css github-pages/app.js _site/
-          cp public/study-background.mp4 public/study-audio.m4a public/study-poster.jpg _site/
-          cp public/empty-captions.vtt public/favicon.svg _site/
+          cp -R site/dist/. _site/
+
+          # The CSS build ships one level down as the no-WebGL2 target, so its
+          # references to shared media have to climb back out. Its own three
+          # files stay put and keep their ./ paths.
+          mkdir _site/fallback
+          cp github-pages/index.html github-pages/styles.css github-pages/app.js _site/fallback/
+          sed -i \
+            -e 's|"\./study-|"../study-|g' \
+            -e 's|"\./empty-captions|"../empty-captions|g' \
+            -e 's|"\./favicon\.svg|"../favicon.svg|g' \
+            _site/fallback/index.html
+          sed -i "s|url('\./fonts/|url('../fonts/|g" _site/fallback/styles.css
+
+          cp public/study-loop.mp4 public/study-loop.av1.mp4 public/study-audio.m4a _site/
+          cp public/study-poster.jpg public/empty-captions.vtt public/favicon.svg _site/
           mkdir _site/fonts
           cp public/fonts/Tektur-Variable.ttf public/fonts/ZCOOLQingKeHuangYou-Subset.woff2 _site/fonts/
 
