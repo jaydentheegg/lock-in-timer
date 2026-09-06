@@ -153,7 +153,7 @@ export class Scene {
       this.clock.measure(this.camera);
       this.clock.set(this.readClockText(), { full: true });
       this.enter.build();
-      this.enter.layout(this.camera, this.page);
+      this.enter.layout(this.camera);
     });
   }
 
@@ -222,7 +222,7 @@ export class Scene {
     this.camera.aspect = width / height;
     this.camera.updateProjectionMatrix();
     this.enter.setPixelRatio(this.pixelRatio);
-    this.enter.layout(this.camera, this.page);
+    this.enter.layout(this.camera);
     if (this.clock.unit) {
       this.clock.measure(this.camera);
       this.clock.set(this.readClockText(), { full: true });

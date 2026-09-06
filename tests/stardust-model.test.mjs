@@ -54,10 +54,21 @@ test('badge has thickness, ribbon width, independently printed faces and exact t
 });
 
 test('LOCK-IN visible points shrink to 70 percent without shrinking the hit mesh',t=>{
-  drawingHarness(t);const entry=new EnterParticles();entry.build();
+  drawingHarness(t);
+  const originalWindow=Object.getOwnPropertyDescriptor(globalThis,'window');
+  Object.defineProperty(globalThis,'window',{configurable:true,value:{innerWidth:1200,innerHeight:800}});
+  t.after(()=>{if(originalWindow)Object.defineProperty(globalThis,'window',originalWindow);else delete globalThis.window;});
+  const entry=new EnterParticles();entry.build();
   assert.equal(entry.points.scale.x,.7);assert.equal(entry.points.scale.y,.7);
   assert.equal(entry.hit.geometry.parameters.width,1.16);
   assert.equal(entry.hit.scale.x,1);
+  const camera=new THREE.PerspectiveCamera(32,1.5,.1,120);camera.position.z=-11.5;camera.updateProjectionMatrix();camera.updateMatrixWorld();
+  entry.layout(camera);entry.group.visible=true;
+  const rect=entry.screenRect(camera,1200,800);
+  assert.equal(entry.group.position.y,0);
+  assert.ok(Math.abs((rect.left+rect.right)/2-600)<1,'cursor frame should be horizontally centred');
+  assert.ok(Math.abs((rect.top+rect.bottom)/2-400)<1,'cursor frame should be vertically centred');
+  assert.ok(rect.right-rect.left<entry.hit.geometry.parameters.width*entry.group.scale.x/(2*Math.abs(entry.group.position.z-camera.position.z)*Math.tan(THREE.MathUtils.degToRad(camera.fov)/2))*800,'cursor frame should be tighter than the click target');
   entry.dispose();
 });
 
