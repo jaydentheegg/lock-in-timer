@@ -12,7 +12,7 @@ const FOV = 32;
 const DPR_CAP = 2;
 
 // How long the scene takes to fold away when the timer starts, and to come
-// back when it stops. Asymmetric on purpose: committing should feel decisive,
+// back when it resets. Asymmetric on purpose: committing should feel decisive,
 // returning should feel like being let out.
 const LOCK_IN_MS = 900;
 const LOCK_OUT_MS = 600;
@@ -28,7 +28,7 @@ const SPIRAL_DIM_BY_PHASE = { link: 0, trace: 0.15, deep: 0.7, null: 0.85, lock:
 const PARTICLE_OPACITY_BY_PHASE = { link: 0.26, trace: 0.3, deep: 0.4, null: 0.44, lock: 0.5 };
 
 export class Scene {
-  constructor(canvas, page, video) {
+  constructor(canvas, page) {
     this.page = page;
     // Transparent: the spiral is a DOM layer behind the canvas now, so the
     // scene has to let it through.
@@ -224,12 +224,12 @@ export class Scene {
   }
 
   /**
-   * Site mode while the timer is stopped, instrument mode while it runs. The
+   * Explore before a session, instrument mode until reset (including pauses). The
    * engine already publishes that on the page; this only has to follow it, and
    * the two durations are what make the boundary feel like a decision.
    */
   syncMode(dt) {
-    this.lockTarget = this.page.dataset.running === "true" ? 1 : 0;
+    this.lockTarget = this.page.dataset.started === "true" ? 1 : 0;
     const duration = (this.lockTarget === 1 ? LOCK_IN_MS : LOCK_OUT_MS) / 1000;
     const step = dt / duration;
     this.lock =
@@ -237,8 +237,7 @@ export class Scene {
         ? Math.min(1, this.lock + step)
         : Math.max(0, this.lock - step);
 
-    // Locked means the wheel is swallowed. Coming back out is deliberate: a
-    // paused session needs a real upward flick, which is also what R does.
+    // Pause freezes elapsed time only; it must not pull the camera back out.
     if (this.lockTarget === 1) this.scroll.rewind();
   }
 

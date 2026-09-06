@@ -210,3 +210,14 @@
   opacity: calc(var(--intro) * .8);
   transition: opacity .4s ease;
 }
+
+/* The captured background slides behind the particle clock, never over it. */
+.focus-page[data-gl="on"][data-deep-entry="entering"] .gl-scene { z-index: -3; }
+.focus-page[data-gl="on"]:is([data-phase="deep"],[data-phase="null"],[data-phase="lock"]) .spiral,
+.focus-page[data-gl="on"]:is([data-phase="deep"],[data-phase="null"],[data-phase="lock"]) .cinema-shade { opacity: 0; }
+.focus-page[data-gl="on"][data-deep-entry="entering"] .spiral { opacity: var(--deep-opacity, 1); }
+.focus-page[data-gl="on"].deep-has-frame .spiral { opacity: 0; }
+.focus-page[data-gl="on"][data-deep-entry="entering"] .focus-video { opacity: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .focus-page[data-gl="on"][data-deep-entry="entering"] .spiral { opacity: var(--deep-opacity, 1); }
+}

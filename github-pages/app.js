@@ -20,6 +20,157 @@ export function createSessionClock(now = () => performance.now()) {
   };
 }
 
+export const DEEP_ENTRY_MS = 1500;
+const clamp01 = value => Math.max(0, Math.min(1, value));
+const smooth = value => { const t = clamp01(value); return t * t * (3 - 2 * t); };
+
+/** Deterministic geometry: no random flicker or new tile layout on each frame. */
+export function deepEntryFrame(elapsed, reduced = false) {
+  const progress = clamp01(elapsed / DEEP_ENTRY_MS);
+  return {
+    progress,
+    zoom: reduced ? 1 : 1 + .16 * smooth(progress / .65),
+    split: reduced ? 0 : smooth((progress - .3) / .7),
+    pixel: reduced ? 0 : smooth((progress - .26) / .2),
+    opacity: 1 - smooth((progress - .35) / .65),
+    done: progress >= 1,
+  };
+}
+
+/** Background-only transition, shared by the WebGL view and CSS fallback.
+ * Captures the current spiral cards (not the clock), or the current video frame.
+ * The bounded snapshot is released on completion, reset, backgrounding and unmount.
+ */
+export function createDeepEntry(page, video, motion) {
+  let frame = 0, canvas = null, snapshot = null, pixels = null;
+  let active = false, began = 0, done = null;
+  const images = new Map();
+  function stop() {
+    active = false;
+    cancelAnimationFrame(frame); frame = 0;
+    canvas?.remove(); canvas = snapshot = pixels = null;
+    page.classList.remove("deep-has-frame");
+    delete page.dataset.deepEntry;
+    page.style.removeProperty("--deep-opacity");
+    done = null;
+    // Image elements belong to the existing spiral; do not retain a second cache.
+    images.clear();
+  }
+  function capture() {
+    const scaleToFit = Math.min(1, 1280 / innerWidth, 900 / innerHeight);
+    const w = Math.max(1, Math.round(innerWidth * scaleToFit)), h = Math.max(1, Math.round(innerHeight * scaleToFit));
+    snapshot = document.createElement("canvas");
+    snapshot.width = w; snapshot.height = h;
+    const ctx = snapshot.getContext("2d");
+    if (!ctx) return false;
+    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, w, h);
+    const cards = [...page.querySelectorAll(".spiral__card")];
+    let painted = false;
+    if (page.dataset.gl === "on" && cards.length) {
+      // Reuse the already-loaded image sources from the renderer, in paint order.
+      const scale = w / innerWidth;
+      const rect = page.getBoundingClientRect();
+      cards.sort((a, b) => Number(a.style.zIndex) - Number(b.style.zIndex));
+      for (const card of cards) {
+        const img = images.get(card);
+        if (!img?.complete || !img.naturalWidth) continue;
+        const box = card.getBoundingClientRect();
+        const style = getComputedStyle(card);
+        const side = Math.min(img.naturalWidth, img.naturalHeight);
+        ctx.globalAlpha = Number(style.opacity);
+        ctx.filter = style.filter;
+        ctx.drawImage(img, (img.naturalWidth-side)/2, (img.naturalHeight-side)/2, side, side,
+          (box.left-rect.left)*scale, (box.top-rect.top)*scale, box.width*scale, box.height*scale);
+        painted = true;
+      }
+      ctx.globalAlpha = 1; ctx.filter = "none";
+      const shade = ctx.createRadialGradient(w*.5, h*.44, 0, w*.5, h*.44, w*.58);
+      shade.addColorStop(0, "rgba(4,2,0,.82)"); shade.addColorStop(1, "transparent");
+      ctx.fillStyle = shade; ctx.fillRect(0, 0, w, h);
+    } else if (video.readyState >= 2 && video.videoWidth) {
+      const ratio = w / h, vr = video.videoWidth / video.videoHeight;
+      const sw = vr > ratio ? video.videoHeight * ratio : video.videoWidth;
+      const sh = vr > ratio ? video.videoHeight : video.videoWidth / ratio;
+      ctx.filter = "brightness(.71) saturate(.83) contrast(1.12)";
+      ctx.drawImage(video, (video.videoWidth-sw)/2, (video.videoHeight-sh)/2, sw, sh, 0, 0, w, h);
+      painted = true;
+    }
+    if (!painted) return false;
+    pixels = document.createElement("canvas");
+    pixels.width = 96; pixels.height = Math.max(1, Math.round(96*h/w));
+    const pc = pixels.getContext("2d");
+    if (!pc) return false;
+    pc.drawImage(snapshot, 0, 0, pixels.width, pixels.height);
+    canvas = document.createElement("canvas");
+    canvas.className = "deep-transition-canvas";
+    canvas.setAttribute("aria-hidden", "true");
+    canvas.width = w; canvas.height = h;
+    page.append(canvas);
+    return Boolean(canvas.getContext("2d"));
+  }
+  function draw(state) {
+    const ctx = canvas?.getContext("2d");
+    if (!ctx) return;
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "#000"; ctx.fillRect(0, 0, w, h);
+    ctx.save();
+    ctx.translate(w/2, h/2); ctx.scale(state.zoom, state.zoom); ctx.translate(-w/2, -h/2);
+    ctx.imageSmoothingEnabled = false;
+    // Vary tile widths across rows, so the image opens in irregular slabs.
+    for (let row = 0; row < 6; row++) {
+      for (let col = 0; col < 12;) {
+        const span = Math.min(12-col, (row+col)%3 === 0 ? 2 : 1);
+        const x = col*w/12, y = row*h/6, tw = span*w/12, th = h/6;
+        const seed = ((row*17+col*13)%19)/19;
+        const travel = smooth((state.split-seed*.16)/.84);
+        const dx = (x+tw/2-w/2)*travel*1.8;
+        const dy = (y+th/2-h/2)*travel*.35;
+        ctx.globalAlpha = state.opacity*(1-state.pixel);
+        ctx.drawImage(snapshot, x, y, tw, th, x+dx, y+dy, tw+.5, th+.5);
+        ctx.globalAlpha = state.opacity*state.pixel;
+        ctx.drawImage(pixels, x/w*pixels.width, y/h*pixels.height, tw/w*pixels.width, th/h*pixels.height,
+          x+dx, y+dy, tw+.5, th+.5);
+        col += span;
+      }
+    }
+    ctx.restore();
+  }
+  function tick(now) {
+    if (!active) return;
+    if (document.hidden) { stop(); return; }
+    const state = deepEntryFrame(now-began, motion.matches);
+    page.style.setProperty("--deep-opacity", String(state.opacity));
+    if (!motion.matches) draw(state);
+    if (state.done) { const complete = done; stop(); complete?.(); return; }
+    frame = requestAnimationFrame(tick);
+  }
+  return {
+    get active() { return active; },
+    // Warm only existing, same-origin background images; no new assets or requests
+    // to third-party services. This runs once the first session has started.
+    prepare() {
+      for (const card of page.querySelectorAll(".spiral__card")) {
+        const src = card.style.backgroundImage.match(/url\(["']?(.*?)["']?\)/)?.[1];
+        if (!src) continue;
+        const img = new Image(); img.src = src; images.set(card, img);
+      }
+    },
+    start(complete) {
+      // Do not clear the warmed images until after capture.
+      if (active) stop();
+      active = true; began = performance.now(); done = complete;
+      page.dataset.deepEntry = "entering";
+      page.style.setProperty("--deep-opacity", "1");
+      try {
+        if (!motion.matches && capture()) { draw(deepEntryFrame(0)); page.classList.add("deep-has-frame"); }
+      } catch { canvas?.remove(); canvas = snapshot = pixels = null; }
+      frame = requestAnimationFrame(tick);
+    },
+    stop,
+  };
+}
+
 /** Shared by React and the standalone GitHub Pages build. */
 export function mountFocus(root) {
   const $ = selector => root.querySelector(selector);
@@ -32,6 +183,7 @@ export function mountFocus(root) {
   const tinyContext = tiny.getContext("2d");
   const preview = new URLSearchParams(location.search).get("preview") === "events";
   const motion = matchMedia("(prefers-reduced-motion: reduce)");
+  const deepEntry = createDeepEntry(page, video, motion);
   const session = createSessionClock();
   const timers = new Map();
   const listeners = [];
@@ -56,7 +208,7 @@ export function mountFocus(root) {
     $(".event-readout").textContent = started ? "CHANNEL / " + PHASES[phase].name.toUpperCase() : "AWAITING INPUT_";
   }
   function burst() {
-    if (!started || document.hidden || motion.matches) return;
+    if (!started || document.hidden || motion.matches || deepEntry.active) return;
     clearBurst();
     const deep = phase >= 2;
     page.dataset.burst = deep ? "pixel" : "tear";
@@ -118,7 +270,7 @@ export function mountFocus(root) {
   }
   function clearBroadcast() { reminder.classList.remove("show"); reminder.textContent=""; reminder.removeAttribute("data-text"); reminder.removeAttribute("aria-label"); }
   function broadcast() {
-    if (!started || document.hidden) return;
+    if (!started || document.hidden || deepEntry.active) return;
     if (!deck.length) {
       deck = [...broadcasts];
       for (let i=deck.length-1;i>0;i--) {const j=Math.floor(Math.random()*(i+1)); [deck[i],deck[j]]=[deck[j],deck[i]];}
@@ -140,6 +292,20 @@ export function mountFocus(root) {
   function hideMilestone() { milestone.classList.remove("show"); page.classList.remove("milestone-open"); }
   function transition(index) {
     hideMilestone(); clearBroadcast();
+    if (index === 2) {
+      ["broadcast", "burst", "broadcastEnd", "burstEnd", "milestoneEnd", "milestoneBurst"].forEach(cancel);
+      clearBurst();
+      deepEntry.start(() => {
+        reminder.textContent = "DEEP / 已进入深层";
+        reminder.dataset.text = reminder.textContent;
+        reminder.setAttribute("aria-label", reminder.textContent);
+        reminder.style.removeProperty("font-size");
+        reminder.classList.add("show");
+        later("broadcastEnd", clearBroadcast, 3800);
+        scheduleBroadcast(); scheduleBurst();
+      });
+      return;
+    }
     $(".milestone-code").textContent = PHASES[index].name.toUpperCase();
     $(".milestone-event p").textContent = PHASES[index].message;
     void milestone.offsetWidth; milestone.classList.add("show"); page.classList.add("milestone-open");
@@ -170,13 +336,13 @@ export function mountFocus(root) {
     sound.setAttribute("aria-label",soundOn?"关闭声音":"打开声音"); sound.setAttribute("aria-pressed",String(soundOn)); resetButton.disabled=!started;
   }
   function togglePlay() {
-    if (!started) { started=true; session.resume(); safePlay(video); if(soundOn)safePlay(audio); scheduleBroadcast(true); scheduleBurst(); }
+    if (!started) { started=true; session.resume(); deepEntry.prepare(); safePlay(video); if(soundOn)safePlay(audio); scheduleBroadcast(true); scheduleBurst(); }
     else if(session.running)session.pause(); else session.resume();
     render();
   }
   function toggleSound() { soundOn=!soundOn; $(".media-message").textContent=""; if(soundOn&&started)safePlay(audio); else audio.pause(); render(); }
   function reset() {
-    timers.forEach(clearTimeout); timers.clear(); clearBurst(); clearBroadcast(); hideMilestone();
+    timers.forEach(clearTimeout); timers.clear(); deepEntry.stop(); clearBurst(); clearBroadcast(); hideMilestone();
     started=false; session.reset(); phase=0; deck=[]; burstSequence=0;
     video.pause(); audio.pause(); video.load(); audio.currentTime=0;
     $(".media-message").textContent=""; $(".event-readout").textContent="AWAITING INPUT_"; render();
@@ -196,17 +362,17 @@ export function mountFocus(root) {
   });
   on(document,"visibilitychange",() => {
     ["broadcast","burst","broadcastEnd","burstEnd","milestoneEnd","milestoneBurst"].forEach(cancel);
-    clearBroadcast(); clearBurst(); hideMilestone();
+    deepEntry.stop(); clearBroadcast(); clearBurst(); hideMilestone();
     // Returning from the background updates state without replaying missed transitions.
     phase=phaseAt(session.seconds(),preview); render();
-    if(!document.hidden){scheduleBroadcast();scheduleBurst();}
+    if(!document.hidden){if(started&&phase<2)deepEntry.prepare();scheduleBroadcast();scheduleBurst();}
   });
   on(motion,"change",() => {clearBurst();scheduleBurst();});
   $(".preview-indicator").hidden=!preview;
   if(preview)root.querySelectorAll("[data-step] small").forEach((el,i)=>{el.textContent=String(PHASES[i].preview).padStart(2,"0")+"s";});
   const ticker=setInterval(render,200);
   render();
-  return () => { disposed=true; clearInterval(ticker); timers.forEach(clearTimeout); timers.clear(); clearBurst(); listeners.forEach(remove=>remove()); video.pause(); audio.pause(); };
+  return () => { disposed=true; clearInterval(ticker); timers.forEach(clearTimeout); timers.clear(); deepEntry.stop(); clearBurst(); clearBroadcast(); hideMilestone(); listeners.forEach(remove=>remove()); video.pause(); audio.pause(); };
 }
 
 const dispose = mountFocus(document);

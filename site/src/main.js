@@ -43,7 +43,7 @@ async function boot() {
   page.prepend(canvas);
 
   const { Scene } = await import("./gl/scene.js");
-  const scene = new Scene(canvas, page, page.querySelector("video"));
+  const scene = new Scene(canvas, page);
   scene.start();
 
   // Only now do the CSS background layers step aside, so a failure above

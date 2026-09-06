@@ -62,6 +62,13 @@
 .focus-page[data-burst=tear] .focus-video{animation:frame-tear 1.2s steps(1,end)}
 .focus-page[data-burst=pixel] .focus-clock{animation:number-tear 1.2s steps(1,end)}
 .media-message{position:absolute;top:85px;left:50%;transform:translateX(-50%);font-size:13px;color:var(--amber);z-index:12;width:max-content;max-width:90vw;text-align:center}
+/* The DEEP entry affects only scenery. The clock and controls never move. */
+.deep-transition-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:-4;pointer-events:none}
+.focus-page[data-deep-entry=entering] .focus-video{opacity:var(--deep-opacity,1);transition:none}
+.focus-page[data-deep-entry=entering] .cinema-shade{opacity:var(--deep-opacity,1);transition:none}
+.focus-page[data-deep-entry=entering] .scanline{visibility:hidden}
+.focus-page[data-deep-entry=entering] .focus-clock::before,.focus-page[data-deep-entry=entering] .focus-clock::after{animation:none;opacity:0}
+.focus-page.deep-has-frame .focus-video,.focus-page.deep-has-frame .cinema-shade{opacity:0}
 @keyframes sweep{0%{transform:translateY(-65%);opacity:0}10%,75%{opacity:.45}100%{transform:translateY(65%);opacity:0}}
 @keyframes beacon{50%{opacity:.5}}
 @keyframes orbit{to{transform:rotate(360deg)}}
@@ -75,3 +82,9 @@
 @media(max-width:760px){.top-line{top:12px;left:20px;right:16px}.connection{font-size:10px;gap:8px}.preview-indicator{font-size:10px}.clock-area{width:80vw}.focus-clock{font-size:20.5vw}.reticle{width:min(65vw,53vh)}.reticle-top,.reticle-bottom{font-size:8px}.clock-caption{font-size:10px}.coordinate{font-size:9px}.side-mark{display:none}.console{width:82vw;bottom:68px}.phase-track{gap:8px}.phase-track>div,.phase-track small{font-size:9px;letter-spacing:0}.bottom-note{left:20px;right:20px;font-size:9px}.key-hint{display:none}.event-readout{margin-left:auto}.screen-reminder{font-size:clamp(15px,3.5vw,22px);letter-spacing:.05em}.playback-controls{gap:26px;margin-bottom:24px}.clock-baseline{margin-top:18px}.clock-caption{margin-bottom:14px}}
 @media(max-height:540px) and (orientation:landscape){.top-line{top:8px}.clock-area,.reticle{top:43%}.focus-clock{font-size:min(17vw,31vh)}.clock-area{width:59vw}.reticle{width:64vh}.console{bottom:30px;width:50vw}.playback-controls{margin-bottom:8px;gap:22px}.hud-button{height:36px}.play-button svg{width:27px}.phase-track small{display:none}.phase-track>div{font-size:9px;gap:2px}.bottom-note{bottom:10px;font-size:8px}.clock-caption{margin-bottom:8px}.clock-baseline{margin-top:12px}.screen-reminder{top:66%;font-size:18px}.reticle-top,.reticle-bottom{font-size:8px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.interference,.scanline{display:none}.screen-reminder.show{opacity:.86}.milestone-event.show{opacity:1;visibility:visible}.focus-clock::before,.focus-clock::after{display:none}}
+@media(prefers-reduced-motion:reduce){
+  .deep-transition-canvas{display:none}
+  .focus-page[data-deep-entry=entering] .focus-video,.focus-page[data-deep-entry=entering] .cinema-shade{opacity:var(--deep-opacity,1)}
+  .screen-reminder.show{animation:quiet-transmission 3.8s ease both!important}
+}
+@keyframes quiet-transmission{0%,100%{opacity:0}12%,78%{opacity:.86}}
