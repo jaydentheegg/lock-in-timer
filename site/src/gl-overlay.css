@@ -39,7 +39,6 @@
   --explore: 0;
 }
 
-.focus-page[data-gl="on"] .reticle,
 .focus-page[data-gl="on"] .side-mark,
 .focus-page[data-gl="on"] .clock-caption,
 .focus-page[data-gl="on"] .clock-baseline,
@@ -188,7 +187,6 @@
 .focus-page[data-gl="on"] { --intro: 1; }
 
 .focus-page[data-gl="on"] .top-line,
-.focus-page[data-gl="on"] .reticle,
 .focus-page[data-gl="on"] .side-mark,
 .focus-page[data-gl="on"] .clock-area,
 .focus-page[data-gl="on"] .spiral {
