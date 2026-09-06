@@ -5,14 +5,13 @@ import { EnterParticles } from "./enter.js";
 import { Lanyard, LANYARD_DEPTH } from "./lanyard.js";
 import { VirtualScroll, SECTIONS, CAMERA_Z, inverseLerp } from "../scroll.js";
 import { TargetCursor } from "../target-cursor.js";
-import { Spiral } from "../spiral.js";
 import { ClockParticles } from "./clock-particles.js";
 
 const FOV = 32;
 const DPR_CAP = 2;
 
 // How long the scene takes to fold away when the timer starts, and to come
-// back when it stops. Asymmetric on purpose: committing should feel decisive,
+// back when it resets. Asymmetric on purpose: committing should feel decisive,
 // returning should feel like being let out.
 const LOCK_IN_MS = 900;
 const LOCK_OUT_MS = 600;
@@ -22,16 +21,13 @@ const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
 // The deeper the session, the less there is to look at. The depth field is what
 // gives that emptiness a distance.
 const FOG_BY_PHASE = { link: 0.012, trace: 0.015, deep: 0.022, null: 0.027, lock: 0.032 };
-// globals.css used to drop --scene-opacity to nothing from DEEP onward. The
-// spiral takes that over: the deeper the session, the less of the city is left.
-const SPIRAL_DIM_BY_PHASE = { link: 0, trace: 0.15, deep: 0.7, null: 0.85, lock: 1 };
-const PARTICLE_OPACITY_BY_PHASE = { link: 0.26, trace: 0.3, deep: 0.4, null: 0.44, lock: 0.5 };
+// Background stars fade away at DEEP; city fragments belong to the shared engine.
+const PARTICLE_OPACITY_BY_PHASE = { link: 0.8, trace: 0.75, deep: 0, null: 0, lock: 0 };
 
 export class Scene {
-  constructor(canvas, page, video) {
+  constructor(canvas, page) {
     this.page = page;
-    // Transparent: the spiral is a DOM layer behind the canvas now, so the
-    // scene has to let it through.
+    // Transparent so the dedicated transition canvas can sit behind the clock.
     this.renderer = new THREE.WebGLRenderer({
       canvas,
       antialias: false,
@@ -44,7 +40,9 @@ export class Scene {
     this.camera = new THREE.PerspectiveCamera(FOV, 1, 0.1, 120);
     this.camera.position.z = CAMERA_Z.start;
 
-    this.spiral = new Spiral(page, import.meta.env.BASE_URL);
+    this.motion = matchMedia("(prefers-reduced-motion: reduce)");
+    this.disposed = false;
+    this.camera.layers.enable(1);
 
     this.gates = new Gates();
     this.scene.add(this.gates.group);
@@ -54,7 +52,7 @@ export class Scene {
 
     // The opening. It hangs in front of everything until it is dismissed, and
     // the descent cannot begin until then.
-    this.lanyard = new Lanyard();
+    this.lanyard = new Lanyard({ textureSize: Math.min(this.renderer.capabilities.maxTextureSize, window.devicePixelRatio > 1 ? 1024 : 768) });
     this.camera.add(this.lanyard.group);
     this.intro = 1;
 
@@ -68,6 +66,7 @@ export class Scene {
     this.lockTarget = 0;
 
     this.particles = new ParticleField();
+    this.particles.points.layers.set(1);
     this.scene.add(this.particles.points);
 
     // Split-flap mechanism, particle glyphs, no cards. It hangs off the camera
@@ -149,6 +148,8 @@ export class Scene {
     // Sampling has to wait for the display face, or the word is rasterised in
     // the fallback font and every glyph shifts when Tektur arrives.
     void document.fonts.ready.then(() => {
+      if (this.disposed) return;
+      this.lanyard.buildFaces();
       this.clock.measure(this.camera);
       this.clock.set(this.readClockText(), { full: true });
       this.enter.build();
@@ -179,8 +180,37 @@ export class Scene {
     if (phase === this.phase) return;
     this.phase = phase;
     this.fogTarget = FOG_BY_PHASE[phase] ?? 0.012;
-    this.spiralDimTarget = SPIRAL_DIM_BY_PHASE[phase] ?? 0;
     this.particleTarget = PARTICLE_OPACITY_BY_PHASE[phase] ?? 0.26;
+  }
+
+  /** Dedicated particle layer; readback never includes clock, badge or gates. */
+  captureBackground() {
+    if(this.disposed)return null;
+    const scale = Math.min(1,1280/innerWidth,900/innerHeight);
+    const width = Math.max(1,Math.round(innerWidth*scale)), height = Math.max(1,Math.round(innerHeight*scale));
+    const target = new THREE.WebGLRenderTarget(width,height);
+    const oldTarget = this.renderer.getRenderTarget();
+    const mask = this.camera.layers.mask;
+    const clear = this.renderer.getClearColor(new THREE.Color());
+    const alpha = this.renderer.getClearAlpha();
+    const ratio = this.particles.material.uniforms.uPixelRatio.value;
+    try {
+      this.camera.layers.set(1);
+      this.particles.material.uniforms.uPixelRatio.value = width/innerWidth;
+      this.renderer.setRenderTarget(target);this.renderer.setClearColor(0x000000,1);
+      this.renderer.render(this.scene,this.camera);
+      const buffer = new Uint8Array(width*height*4);
+      this.renderer.readRenderTargetPixels(target,0,0,width,height,buffer);
+      const canvas = document.createElement("canvas");canvas.width=width;canvas.height=height;
+      const ctx=canvas.getContext("2d");if(!ctx)return null;
+      const data=ctx.createImageData(width,height);
+      for(let row=0;row<height;row++)data.data.set(buffer.subarray(row*width*4,(row+1)*width*4),(height-1-row)*width*4);
+      ctx.putImageData(data,0,0);return canvas;
+    } finally {
+      this.camera.layers.mask=mask;
+      this.particles.material.uniforms.uPixelRatio.value=ratio;
+      this.renderer.setRenderTarget(oldTarget);this.renderer.setClearColor(clear,alpha);target.dispose();
+    }
   }
 
   resize() {
@@ -224,12 +254,12 @@ export class Scene {
   }
 
   /**
-   * Site mode while the timer is stopped, instrument mode while it runs. The
+   * Explore before a session, instrument mode until reset (including pauses). The
    * engine already publishes that on the page; this only has to follow it, and
    * the two durations are what make the boundary feel like a decision.
    */
   syncMode(dt) {
-    this.lockTarget = this.page.dataset.running === "true" ? 1 : 0;
+    this.lockTarget = this.page.dataset.started === "true" ? 1 : 0;
     const duration = (this.lockTarget === 1 ? LOCK_IN_MS : LOCK_OUT_MS) / 1000;
     const step = dt / duration;
     this.lock =
@@ -237,8 +267,7 @@ export class Scene {
         ? Math.min(1, this.lock + step)
         : Math.max(0, this.lock - step);
 
-    // Locked means the wheel is swallowed. Coming back out is deliberate: a
-    // paused session needs a real upward flick, which is also what R does.
+    // Pause freezes elapsed time only; it must not pull the camera back out.
     if (this.lockTarget === 1) this.scroll.rewind();
   }
 
@@ -248,7 +277,8 @@ export class Scene {
 
   tick = () => {
     if (!this.running) return;
-    requestAnimationFrame(this.tick);
+    this.frame = requestAnimationFrame(this.tick);
+    if(document.hidden)return;
 
     // No document.hidden guard: browsers already stop firing rAF for a hidden
     // tab, and embedded contexts that report hidden while still compositing
@@ -258,6 +288,7 @@ export class Scene {
     this.measure(dt);
     this.syncPhase();
     this.syncMode(dt);
+    if(this.page.dataset.started==="true")this.introTarget=0;
 
     // The intro holds the page shut: no scrolling past a card you have not
     // taken off the hook.
@@ -311,7 +342,13 @@ export class Scene {
 
     const uniforms = this.particles.material.uniforms;
     if (this.fogTarget !== undefined) this.approach(uniforms.uFogDensity, this.fogTarget, dt);
-    if (this.particleTarget !== undefined) this.approach(uniforms.uOpacity, this.particleTarget, dt);
+    const entering = this.page.dataset.deepEntry === "entering";
+    const ambient = this.intro > .01 ? .24 : this.started ? .48 : 1;
+    if (this.particleTarget !== undefined) {
+      this.approach(uniforms.uOpacity, this.particleTarget * ambient, dt, 2);
+      if(entering)uniforms.uOpacity.value=this.motion.matches ? .36*Number(this.page.style.getPropertyValue("--deep-opacity")) : 0;
+    }
+    this.particles.points.visible=(this.particleTarget??0)>0||(entering&&this.motion.matches);
 
     // The clock arrives with the session. It re-forms from scatter the first
     // time the timer starts, and again after a reset.
@@ -328,16 +365,15 @@ export class Scene {
       mouse: this.mouse,
       pixelRatio: this.pixelRatio,
       cameraZ: this.camera.position.z,
+      reduced: this.motion.matches,
     });
-
-    this.spiralDim = (this.spiralDim ?? 0) +
-      ((this.spiralDimTarget ?? 0) - (this.spiralDim ?? 0)) * (1 - Math.exp(-dt * 0.6));
-    this.spiral.update(dt, progress, Math.max(folded, this.spiralDim));
     this.renderer.render(this.scene, this.camera);
   };
 
   dispose() {
+    this.disposed = true;
     this.running = false;
+    cancelAnimationFrame(this.frame);
     window.removeEventListener("resize", this.onResize);
     window.removeEventListener("pointermove", this.onPointerMove);
     window.removeEventListener("pointerleave", this.onPointerLeave);
@@ -346,7 +382,6 @@ export class Scene {
     window.removeEventListener("pointerup", this.onPointerUp);
     this.scroll.detach();
     this.cursor.dispose();
-    this.spiral.dispose();
     this.particles.dispose();
     this.clock.dispose();
     this.lanyard.dispose();

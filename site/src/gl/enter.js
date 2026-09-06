@@ -181,6 +181,8 @@ export class EnterParticles {
     geometry.setAttribute("aSeed", new THREE.BufferAttribute(seed, 2));
 
     this.points = new THREE.Points(geometry, this.material);
+    // Shrink only the visible ink; layout and the original hit area stay intact.
+    this.points.scale.setScalar(.7);
     this.points.frustumCulled = false;
     this.group.add(this.points);
   }
