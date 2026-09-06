@@ -16,6 +16,15 @@
 .preview-indicator{font-size:12px;letter-spacing:.08em;color:var(--amber);opacity:.65}
 .fullscreen-button{border:0;background:none;color:var(--muted);width:44px;height:44px;padding:12px}.fullscreen-button svg{width:20px;fill:none;stroke:currentColor;stroke-width:1.3}
 .fullscreen-button:hover{color:var(--amber)}
+.reticle{position:absolute;top:44%;left:50%;width:min(62vh,580px);aspect-ratio:1;transform:translate(-50%,-50%);z-index:1;pointer-events:none;opacity:0;transition:opacity 1s;filter:drop-shadow(0 0 14px rgba(244,182,92,.28))}
+.reticle svg{width:100%;height:100%;overflow:visible;fill:none;stroke:var(--amber);stroke-width:1.1}
+.orbit-ticks{stroke-dasharray:1 14;stroke-width:5;opacity:.55;transform-origin:center}
+.orbit-inner{opacity:.3;stroke-dasharray:170 50 4 30}.crosshair{opacity:.5}
+.orbit-progress{stroke-dasharray:100;stroke-dashoffset:calc(100 - var(--progress)*100);stroke-width:2.4;transform:rotate(-90deg);transform-origin:center;opacity:.7;transition:stroke-dashoffset 1s linear}
+.focus-page[data-started=true] .reticle{opacity:.63}.focus-page[data-started=true] .orbit-inner{opacity:.46}.focus-page[data-started=true] .orbit-ticks{opacity:.72}
+.focus-page[data-running=true] .orbit-ticks{animation:orbit 180s linear infinite}
+.reticle-top,.reticle-bottom{position:absolute;left:0;right:0;text-align:center;color:var(--muted);font-size:10px;letter-spacing:.28em;white-space:nowrap}
+.reticle-top{top:11%}.reticle-bottom{bottom:10%}
 .clock-area{position:absolute;top:44%;left:50%;transform:translate(-50%,-50%);width:66vw;max-width:1110px;z-index:3;pointer-events:none}
 .clock-caption{display:flex;justify-content:space-between;align-items:center;color:var(--amber);font-size:12px;letter-spacing:.18em;padding:0 .8vw;margin-bottom:18px;opacity:.62}
 .coordinate{font-size:11px;opacity:.6;letter-spacing:.1em}
@@ -43,10 +52,11 @@
 .milestone-event{position:absolute;inset:0;z-index:6;display:grid;align-content:center;justify-items:center;gap:20px;visibility:hidden;opacity:0;pointer-events:none;background:linear-gradient(90deg,#000c,#120802eb,#000d)}
 .milestone-event.show{animation:phase-enter 2.8s both}.milestone-code{font-size:clamp(72px,16vw,230px);line-height:.9;letter-spacing:.12em;margin-right:-.12em;color:transparent;-webkit-text-stroke:1px var(--amber);text-shadow:14px 0 0 #dd4c3020}
 .milestone-caption{font-size:11px;letter-spacing:.45em;color:var(--muted)}.milestone-event p{font-family:QingKe,'PingFang SC',sans-serif;font-size:clamp(18px,2vw,30px);color:var(--amber);letter-spacing:.2em;margin:0}.milestone-rule{width:120px;height:1px;background:var(--amber);box-shadow:0 0 12px var(--amber)}
-.milestone-open .clock-area{opacity:0;transition:opacity .18s}
+.milestone-open .clock-area,.milestone-open .reticle{opacity:0;transition:opacity .18s}
 .focus-page:is([data-phase=deep],[data-phase=null],[data-phase=lock]){--scene-opacity:0}
 .focus-page:is([data-phase=deep],[data-phase=null],[data-phase=lock]) .cinema-shade{opacity:0}
 .focus-page:is([data-phase=deep],[data-phase=null],[data-phase=lock]) .film-grain{opacity:0}
+.focus-page[data-started=true]:is([data-phase=deep],[data-phase=null],[data-phase=lock]) .reticle{opacity:.25}
 .focus-page:is([data-phase=deep],[data-phase=null],[data-phase=lock]) .focus-clock{color:#15100a;-webkit-text-stroke-color:#d9a76b;text-shadow:0 0 50px #ec972b0a}
 .focus-page[data-phase=lock]{--amber:#ee9b58}
 .focus-page[data-burst=tear] .focus-video{animation:frame-tear 1.2s steps(1,end)}
@@ -61,6 +71,7 @@
 .focus-page.deep-has-frame .focus-video,.focus-page.deep-has-frame .cinema-shade{opacity:0}
 @keyframes sweep{0%{transform:translateY(-65%);opacity:0}10%,75%{opacity:.45}100%{transform:translateY(65%);opacity:0}}
 @keyframes beacon{50%{opacity:.5}}
+@keyframes orbit{to{transform:rotate(360deg)}}
 @keyframes clock-fracture{0%,83%,94%,100%{opacity:0;transform:translate(0)}84%{opacity:.9;transform:translate(-14px,2px)}86%{opacity:.6;transform:translate(8px,-1px);clip-path:inset(12% 0 70%)}89%{opacity:1;transform:translate(-7px);clip-path:inset(51% 0 22%)}92%{opacity:.7;transform:translate(17px,1px)}}
 @keyframes transmission{0%{opacity:0;transform:translate(-50%,calc(-50% + 8px));filter:blur(4px)}10%,62%{opacity:.86;transform:translate(-50%,-50%);filter:none}72%{opacity:.7;transform:translate(calc(-50% - 5px),-50%)}79%{opacity:.9;transform:translate(calc(-50% + 7px),-50%)}84%,100%{opacity:0;transform:translate(-50%,-50%)}}
 @keyframes text-tear{0%,63%,85%,100%{opacity:0}64%{opacity:1;transform:translateX(-12px)}72%{transform:translateX(14px)}80%{transform:translateX(-8px)}}
@@ -68,8 +79,8 @@
 @keyframes frame-tear{0%,100%{transform:none}15%{transform:translateX(-5px)}23%{transform:translate(3px,2px)}33%,69%{transform:none}72%{transform:translateY(-4px)}79%{transform:translateX(2px)}}
 @keyframes number-tear{0%,100%{transform:none}20%{transform:translateX(-3px);text-shadow:12px 0 #ee9b5833}36%{transform:translateX(4px);text-shadow:-12px 0 #ea4d3233}55%{transform:none}76%{transform:translateX(-2px)}}
 @media(min-width:1800px){.clock-area{width:64vw}.clock-caption{font-size:14px}.phase-track>div,.phase-track small,.bottom-note{font-size:12px}}
-@media(max-width:760px){.top-line{top:12px;left:20px;right:16px}.connection{font-size:10px;gap:8px}.preview-indicator{font-size:10px}.clock-area{width:80vw}.focus-clock{font-size:20.5vw}.clock-caption{font-size:10px}.coordinate{font-size:9px}.side-mark{display:none}.console{width:82vw;bottom:68px}.phase-track{gap:8px}.phase-track>div,.phase-track small{font-size:9px;letter-spacing:0}.bottom-note{left:20px;right:20px;font-size:9px}.key-hint{display:none}.event-readout{margin-left:auto}.screen-reminder{font-size:clamp(15px,3.5vw,22px);letter-spacing:.05em}.playback-controls{gap:26px;margin-bottom:24px}.clock-baseline{margin-top:18px}.clock-caption{margin-bottom:14px}}
-@media(max-height:540px) and (orientation:landscape){.top-line{top:8px}.clock-area{top:43%}.focus-clock{font-size:min(17vw,31vh)}.clock-area{width:59vw}.console{bottom:30px;width:50vw}.playback-controls{margin-bottom:8px;gap:22px}.hud-button{height:36px}.play-button svg{width:27px}.phase-track small{display:none}.phase-track>div{font-size:9px;gap:2px}.bottom-note{bottom:10px;font-size:8px}.clock-caption{margin-bottom:8px}.clock-baseline{margin-top:12px}.screen-reminder{top:66%;font-size:18px}}
+@media(max-width:760px){.top-line{top:12px;left:20px;right:16px}.connection{font-size:10px;gap:8px}.preview-indicator{font-size:10px}.clock-area{width:80vw}.focus-clock{font-size:20.5vw}.reticle{width:min(65vw,53vh)}.reticle-top,.reticle-bottom{font-size:8px}.clock-caption{font-size:10px}.coordinate{font-size:9px}.side-mark{display:none}.console{width:82vw;bottom:68px}.phase-track{gap:8px}.phase-track>div,.phase-track small{font-size:9px;letter-spacing:0}.bottom-note{left:20px;right:20px;font-size:9px}.key-hint{display:none}.event-readout{margin-left:auto}.screen-reminder{font-size:clamp(15px,3.5vw,22px);letter-spacing:.05em}.playback-controls{gap:26px;margin-bottom:24px}.clock-baseline{margin-top:18px}.clock-caption{margin-bottom:14px}}
+@media(max-height:540px) and (orientation:landscape){.top-line{top:8px}.clock-area,.reticle{top:43%}.focus-clock{font-size:min(17vw,31vh)}.clock-area{width:59vw}.reticle{width:64vh}.console{bottom:30px;width:50vw}.playback-controls{margin-bottom:8px;gap:22px}.hud-button{height:36px}.play-button svg{width:27px}.phase-track small{display:none}.phase-track>div{font-size:9px;gap:2px}.bottom-note{bottom:10px;font-size:8px}.clock-caption{margin-bottom:8px}.clock-baseline{margin-top:12px}.screen-reminder{top:66%;font-size:18px}.reticle-top,.reticle-bottom{font-size:8px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}.interference,.scanline{display:none}.screen-reminder.show{opacity:.86}.milestone-event.show{opacity:1;visibility:visible}.focus-clock::before,.focus-clock::after{display:none}}
 @media(prefers-reduced-motion:reduce){
   .deep-transition-canvas{display:none}
