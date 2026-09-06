@@ -49,7 +49,7 @@ const VERT = /* glsl */ `
     gl_Position = clip;
     vDepth = -viewPosition.z;
     vSeed = seed.x;
-    gl_PointSize = (uSize * uPixelRatio) / max(-viewPosition.z, 0.4);
+    gl_PointSize = clamp(uSize / max(-viewPosition.z, 0.4), 0.85, 2.8) * uPixelRatio;
   }
 `;
 
@@ -76,7 +76,7 @@ const FRAG = /* glsl */ `
 `;
 
 export class ParticleField {
-  constructor({ count = 12000, depth = [-2, -20], spread = 9 } = {}) {
+  constructor({ count = 6000, depth = [-2, -20], spread = 9 } = {}) {
     this.count = count;
 
     const positions = new Float32Array(count * 3);
@@ -102,14 +102,14 @@ export class ParticleField {
       blending: THREE.AdditiveBlending,
       uniforms: {
         uTime: { value: 0 },
-        uSize: { value: 1.75 },
+        uSize: { value: 8 },
         uPixelRatio: { value: 1 },
         uMouse: { value: new THREE.Vector2(2, 2) },
         uRepelRadius: { value: 0.34 },
         uRepelForce: { value: 0.06 },
         uCameraZ: { value: 0 },
         uDepth: { value: new THREE.Vector2(2, 20) },
-        uColor: { value: new THREE.Color(0xf2a21d) },
+        uColor: { value: new THREE.Color(0xf0f4fa) },
         uFogColor: { value: new THREE.Color(0x06080a) },
         uFogDensity: { value: 0.012 },
         uOpacity: { value: 0.3 },
@@ -126,10 +126,11 @@ export class ParticleField {
     this.geometry.setDrawRange(0, Math.max(1, Math.round(this.count * fraction)));
   }
 
-  update(dt, { mouse, pixelRatio, cameraZ = 0 }) {
+  update(dt, { mouse, pixelRatio, cameraZ = 0, reduced = false }) {
     const uniforms = this.material.uniforms;
     uniforms.uCameraZ.value = cameraZ;
-    uniforms.uTime.value += dt;
+    if(!reduced)uniforms.uTime.value += dt;
+    uniforms.uRepelForce.value = reduced ? 0 : 0.035;
     uniforms.uPixelRatio.value = pixelRatio;
     uniforms.uMouse.value.lerp(mouse, 1 - Math.exp(-dt * 6));
   }

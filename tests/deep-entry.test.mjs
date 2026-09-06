@@ -30,7 +30,7 @@ class Element extends EventTarget {
   getBoundingClientRect() { return {left: 0, top: 0, width: 1280, height: 720}; }
 }
 
-function harness(t, {reduced = false, preview = true, noCanvas = false, gl = false} = {}) {
+function harness(t, {reduced = false, preview = true, noCanvas = false, gl = false, captureBackground} = {}) {
   const originals = new Map();
   const install = (key, value) => {
     originals.set(key, Object.getOwnPropertyDescriptor(globalThis,key));
@@ -71,10 +71,10 @@ function harness(t, {reduced = false, preview = true, noCanvas = false, gl = fal
     }
     now=until;
   }
-  const dispose=mountFocus(doc);
+  const dispose=mountFocus(doc,{captureBackground});
   t.after(()=>{dispose();for(const [key,descriptor] of originals){if(descriptor)Object.defineProperty(globalThis,key,descriptor);else delete globalThis[key];}});
-  return {get,page,doc,motion,jobs,advance,dispose,canvas:()=>page.children?.findLast(el=>!el.removed),
-    jump(ms){now+=ms;[...jobs.values()].find(job=>job.interval)?.fn();},
+  return {get,page,doc,motion,jobs,advance,dispose,canvas:()=>page.children?.findLast(el=>!el.removed&&el.className==='deep-transition-canvas'),
+    jump(ms){now+=ms;[...jobs.values()].find(job=>job.interval===200)?.fn();},
     hide(hidden){doc.hidden=hidden;doc.dispatchEvent(new Event('visibilitychange'));}};
 }
 
@@ -161,8 +161,10 @@ test('missing Canvas degrades safely and unmount releases all timers',t=>{
   assert.equal(h.page.dataset.phase,'deep');h.dispose();assert.equal(h.jobs.size,0);
 });
 
-test('WebGL spiral capture uses the existing cards and is removed on completion',t=>{
-  const h=harness(t,{gl:true});h.get('.play-button').click();h.advance(25000);
+test('WebGL uses the background-only capture interface once and cleans it up',t=>{
+  let captured=0;
+  const h=harness(t,{gl:true,captureBackground:()=>{captured++;return new Element();}});h.get('.play-button').click();h.advance(25000);
+  assert.equal(captured,1);
   assert.ok(h.canvas().draws>0);assert.equal(h.page.classList.contains('deep-has-frame'),true);
   h.advance(1520);assert.equal(h.canvas(),undefined);assert.equal(h.page.classList.contains('deep-has-frame'),false);
 });
@@ -174,16 +176,16 @@ test('unmount during entry releases the snapshot, animation frame and callbacks'
   h.advance(10000);assert.equal(h.get('.screen-reminder').textContent,'');
 });
 
-test('returning before DEEP rewarms the current spiral for a later capture',t=>{
+test('returning before DEEP still allows a later stardust capture',t=>{
   const h=harness(t,{gl:true});h.get('.play-button').click();h.advance(1000);
   h.hide(true);h.advance(2000);h.hide(false);h.advance(22000);
   assert.equal(h.page.classList.contains('deep-has-frame'),true);
 });
 
-test('unavailable media falls back to background fade without interrupting the session',t=>{
+test('unavailable video does not prevent the independent stardust transition',t=>{
   const h=harness(t);h.get('video').readyState=0;
   h.get('.play-button').click();h.advance(25000);
-  assert.equal(h.page.dataset.deepEntry,'entering');assert.equal(h.canvas(),undefined);
+  assert.equal(h.page.dataset.deepEntry,'entering');assert.ok(h.canvas());
   h.advance(1520);assert.equal(h.page.dataset.running,'true');assert.equal(h.get('audio').pauses,0);
 });
 

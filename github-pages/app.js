@@ -24,6 +24,38 @@ export const DEEP_ENTRY_MS = 1500;
 const clamp01 = value => Math.max(0, Math.min(1, value));
 const smooth = value => { const t = clamp01(value); return t * t * (3 - 2 * t); };
 
+/** Lightweight, deterministic non-WebGL background; also the safe capture fallback. */
+export function mountStardust(page, motion) {
+  const canvas = document.createElement("canvas");
+  canvas.className = "stardust-fallback"; canvas.setAttribute("aria-hidden", "true");
+  page.append(canvas);
+  const ctx = canvas.getContext("2d");
+  let lastKey = "";
+  function draw(force = false) {
+    if (!ctx || document.hidden || (!force && (page.dataset.gl === "on" || ["deep","null","lock"].includes(page.dataset.phase)))) return;
+    const width = Math.min(innerWidth,1280), height = Math.round(width*innerHeight/innerWidth);
+    const quiet = motion.matches;
+    const time = quiet ? 0 : performance.now() / 1000;
+    const key = `${width}/${height}/${page.dataset.started}/${quiet}/${Math.floor(time*10)}`;
+    if (!force && key === lastKey) return;
+    lastKey = key;
+    if(canvas.width!==width||canvas.height!==height){canvas.width=width;canvas.height=height;}
+    ctx.clearRect(0,0,width,height);
+    ctx.fillStyle="#000";ctx.fillRect(0,0,width,height);
+    for(let i=0;i<360;i++){
+      const seed=((i*7919)%1009)/1009;
+      const x=(((i*.61803398875)%1)+Math.sin(time*.07+seed*6.28)*.004)*width;
+      const y=(((i*.41421356237)%1)+Math.cos(time*.05+seed*9)*.004)*height;
+      const size=.65+seed*1.25;
+      ctx.fillStyle=`rgba(240,244,250,${(.18+seed*.52)*(page.dataset.started==='true'?.58:1)})`;
+      ctx.fillRect(x,y,size,size);
+    }
+  }
+  draw();
+  const timer=setInterval(draw,100);
+  return {capture(){draw(true);return ctx?canvas:null;},dispose(){clearInterval(timer);canvas.remove();}};
+}
+
 /** Deterministic geometry: no random flicker or new tile layout on each frame. */
 export function deepEntryFrame(elapsed, reduced = false) {
   const progress = clamp01(elapsed / DEEP_ENTRY_MS);
@@ -38,13 +70,12 @@ export function deepEntryFrame(elapsed, reduced = false) {
 }
 
 /** Background-only transition, shared by the WebGL view and CSS fallback.
- * Captures the current spiral cards (not the clock), or the current video frame.
+ * Captures background particles only, never the clock, badge or controls.
  * The bounded snapshot is released on completion, reset, backgrounding and unmount.
  */
-export function createDeepEntry(page, video, motion) {
+export function createDeepEntry(page, captureBackground, motion) {
   let frame = 0, canvas = null, snapshot = null, pixels = null;
   let active = false, began = 0, done = null;
-  const images = new Map();
   function stop() {
     active = false;
     cancelAnimationFrame(frame); frame = 0;
@@ -53,8 +84,6 @@ export function createDeepEntry(page, video, motion) {
     delete page.dataset.deepEntry;
     page.style.removeProperty("--deep-opacity");
     done = null;
-    // Image elements belong to the existing spiral; do not retain a second cache.
-    images.clear();
   }
   function capture() {
     const scaleToFit = Math.min(1, 1280 / innerWidth, 900 / innerHeight);
@@ -64,43 +93,27 @@ export function createDeepEntry(page, video, motion) {
     const ctx = snapshot.getContext("2d");
     if (!ctx) return false;
     ctx.fillStyle = "#000"; ctx.fillRect(0, 0, w, h);
-    const cards = [...page.querySelectorAll(".spiral__card")];
-    let painted = false;
-    if (page.dataset.gl === "on" && cards.length) {
-      // Reuse the already-loaded image sources from the renderer, in paint order.
-      const scale = w / innerWidth;
-      const rect = page.getBoundingClientRect();
-      cards.sort((a, b) => Number(a.style.zIndex) - Number(b.style.zIndex));
-      for (const card of cards) {
-        const img = images.get(card);
-        if (!img?.complete || !img.naturalWidth) continue;
-        const box = card.getBoundingClientRect();
-        const style = getComputedStyle(card);
-        const side = Math.min(img.naturalWidth, img.naturalHeight);
-        ctx.globalAlpha = Number(style.opacity);
-        ctx.filter = style.filter;
-        ctx.drawImage(img, (img.naturalWidth-side)/2, (img.naturalHeight-side)/2, side, side,
-          (box.left-rect.left)*scale, (box.top-rect.top)*scale, box.width*scale, box.height*scale);
-        painted = true;
-      }
-      ctx.globalAlpha = 1; ctx.filter = "none";
-      const shade = ctx.createRadialGradient(w*.5, h*.44, 0, w*.5, h*.44, w*.58);
-      shade.addColorStop(0, "rgba(4,2,0,.82)"); shade.addColorStop(1, "transparent");
-      ctx.fillStyle = shade; ctx.fillRect(0, 0, w, h);
-    } else if (video.readyState >= 2 && video.videoWidth) {
-      const ratio = w / h, vr = video.videoWidth / video.videoHeight;
-      const sw = vr > ratio ? video.videoHeight * ratio : video.videoWidth;
-      const sh = vr > ratio ? video.videoHeight : video.videoWidth / ratio;
-      ctx.filter = "brightness(.71) saturate(.83) contrast(1.12)";
-      ctx.drawImage(video, (video.videoWidth-sw)/2, (video.videoHeight-sh)/2, sw, sh, 0, 0, w, h);
-      painted = true;
-    }
-    if (!painted) return false;
+    const source = captureBackground?.();
+    if (!source) return false;
+    ctx.drawImage(source,0,0,w,h);
     pixels = document.createElement("canvas");
     pixels.width = 96; pixels.height = Math.max(1, Math.round(96*h/w));
     const pc = pixels.getContext("2d");
     if (!pc) return false;
     pc.drawImage(snapshot, 0, 0, pixels.width, pixels.height);
+    // Maximum-value pooling keeps tiny white stars visible as coarse blocks;
+    // ordinary thumbnail averaging would erase them against the black.
+    if(ctx.getImageData && pc.createImageData){
+      const source=ctx.getImageData(0,0,w,h).data;
+      const pooled=pc.createImageData(pixels.width,pixels.height);
+      for(let y=0;y<h;y++)for(let x=0;x<w;x++){
+        const from=(y*w+x)*4;
+        const to=(Math.floor(y/h*pixels.height)*pixels.width+Math.floor(x/w*pixels.width))*4;
+        for(let c=0;c<3;c++)pooled.data[to+c]=Math.max(pooled.data[to+c],source[from+c]);
+        pooled.data[to+3]=255;
+      }
+      pc.putImageData(pooled,0,0);
+    }
     canvas = document.createElement("canvas");
     canvas.className = "deep-transition-canvas";
     canvas.setAttribute("aria-hidden", "true");
@@ -147,17 +160,7 @@ export function createDeepEntry(page, video, motion) {
   }
   return {
     get active() { return active; },
-    // Warm only existing, same-origin background images; no new assets or requests
-    // to third-party services. This runs once the first session has started.
-    prepare() {
-      for (const card of page.querySelectorAll(".spiral__card")) {
-        const src = card.style.backgroundImage.match(/url\(["']?(.*?)["']?\)/)?.[1];
-        if (!src) continue;
-        const img = new Image(); img.src = src; images.set(card, img);
-      }
-    },
     start(complete) {
-      // Do not clear the warmed images until after capture.
       if (active) stop();
       active = true; began = performance.now(); done = complete;
       page.dataset.deepEntry = "entering";
@@ -172,7 +175,7 @@ export function createDeepEntry(page, video, motion) {
 }
 
 /** Shared by React and the standalone GitHub Pages build. */
-export function mountFocus(root) {
+export function mountFocus(root, { captureBackground } = {}) {
   const $ = selector => root.querySelector(selector);
   const page = $(".focus-page"), video = $("video"), audio = $("audio");
   const clock = $(".focus-clock"), play = $(".play-button"), sound = $(".sound-button"), resetButton = $(".reset-button");
@@ -183,7 +186,11 @@ export function mountFocus(root) {
   const tinyContext = tiny.getContext("2d");
   const preview = new URLSearchParams(location.search).get("preview") === "events";
   const motion = matchMedia("(prefers-reduced-motion: reduce)");
-  const deepEntry = createDeepEntry(page, video, motion);
+  const stardust = mountStardust(page, motion);
+  const deepEntry = createDeepEntry(page, () => {
+    try { return captureBackground?.() || stardust.capture(); }
+    catch { return stardust.capture(); }
+  }, motion);
   const session = createSessionClock();
   const timers = new Map();
   const listeners = [];
@@ -213,7 +220,7 @@ export function mountFocus(root) {
     const deep = phase >= 2;
     page.dataset.burst = deep ? "pixel" : "tear";
     $(".event-readout").textContent = deep ? "MEMORY FRAGMENT / " + String(++burstSequence).padStart(3,"0") : "SIGNAL INTERRUPTION";
-    if (context && tinyContext) {
+    if (deep && context && tinyContext) {
       // Cap resolution and rate; only copy video frames during a short burst.
       canvas.width = Math.min(innerWidth,1440);
       canvas.height = Math.round(canvas.width * innerHeight / innerWidth);
@@ -336,7 +343,7 @@ export function mountFocus(root) {
     sound.setAttribute("aria-label",soundOn?"关闭声音":"打开声音"); sound.setAttribute("aria-pressed",String(soundOn)); resetButton.disabled=!started;
   }
   function togglePlay() {
-    if (!started) { started=true; session.resume(); deepEntry.prepare(); safePlay(video); if(soundOn)safePlay(audio); scheduleBroadcast(true); scheduleBurst(); }
+    if (!started) { started=true; session.resume(); safePlay(video); if(soundOn)safePlay(audio); scheduleBroadcast(true); scheduleBurst(); }
     else if(session.running)session.pause(); else session.resume();
     render();
   }
@@ -365,14 +372,14 @@ export function mountFocus(root) {
     deepEntry.stop(); clearBroadcast(); clearBurst(); hideMilestone();
     // Returning from the background updates state without replaying missed transitions.
     phase=phaseAt(session.seconds(),preview); render();
-    if(!document.hidden){if(started&&phase<2)deepEntry.prepare();scheduleBroadcast();scheduleBurst();}
+    if(!document.hidden){scheduleBroadcast();scheduleBurst();}
   });
   on(motion,"change",() => {clearBurst();scheduleBurst();});
   $(".preview-indicator").hidden=!preview;
   if(preview)root.querySelectorAll("[data-step] small").forEach((el,i)=>{el.textContent=String(PHASES[i].preview).padStart(2,"0")+"s";});
   const ticker=setInterval(render,200);
   render();
-  return () => { disposed=true; clearInterval(ticker); timers.forEach(clearTimeout); timers.clear(); deepEntry.stop(); clearBurst(); clearBroadcast(); hideMilestone(); listeners.forEach(remove=>remove()); video.pause(); audio.pause(); };
+  return () => { disposed=true; clearInterval(ticker); timers.forEach(clearTimeout); timers.clear(); deepEntry.stop(); stardust.dispose(); clearBurst(); clearBroadcast(); hideMilestone(); listeners.forEach(remove=>remove()); video.pause(); audio.pause(); };
 }
 
 const dispose = mountFocus(document);
