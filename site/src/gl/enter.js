@@ -13,7 +13,7 @@ const DEPTH = -15;
 // fixed distance keeps the word the same size on screen however it got there.
 const READ_FROM = -11.5;
 const FONT_SIZE = 118;
-const MARGIN = 18; // CSS px kept clear of the clock above and the console below
+const CURSOR_PADDING = 8;
 const STEP = 3;
 const SCATTER = 0.5; // as a share of the word's width
 const PARTICLE_SIZE = 2.2;
@@ -187,29 +187,18 @@ export class EnterParticles {
     this.group.add(this.points);
   }
 
-  /**
-   * Fits the word into the gap the interface leaves between the clock and the
-   * console. Guessing a fixed offset put it straight through the controls at
-   * one viewport and left a hole at another; the DOM already knows where the
-   * free band is, so it decides.
-   */
-  layout(camera, page) {
+  /** Keep the entry word at the visual centre on every viewport. */
+  layout(camera) {
     if (!this.points) return;
     const height = window.innerHeight;
     const distance = Math.abs(DEPTH - READ_FROM);
     const unit = (2 * distance * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2)) / height;
-
-    const above = page.querySelector(".clock-area")?.getBoundingClientRect().bottom ?? height * 0.55;
-    const below = page.querySelector(".console")?.getBoundingClientRect().top ?? height * 0.9;
-    const top = above + MARGIN;
-    const bottom = Math.max(top + 40, below - MARGIN);
-
-    const bandHeight = (bottom - top) * unit;
+    const bandHeight = height * 0.42 * unit;
     const maxWidth = window.innerWidth * 0.62 * unit;
     const worldWidth = Math.min(maxWidth, bandHeight / Math.max(this.aspect, 0.001));
 
     this.group.scale.setScalar(worldWidth);
-    this.group.position.y = -((top + bottom) / 2 - height / 2) * unit;
+    this.group.position.y = 0;
     this.hit.scale.set(1, Math.max(this.aspect * 1.5, 0.5), 1);
   }
 
@@ -233,9 +222,13 @@ export class EnterParticles {
    * around. Null when the word is not on screen.
    */
   screenRect(camera, width, height) {
-    if (!this.group.visible) return null;
-    const halfWidth = this.hit.geometry.parameters.width / 2;
-    const halfHeight = this.hit.geometry.parameters.height / 2;
+    if (!this.group.visible || !this.points) return null;
+    // The hit mesh intentionally stays generous for touch and click. The
+    // cursor frame follows only the visible ink, so it hugs LOCK-IN instead of
+    // revealing that larger invisible target.
+    const halfWidth = 0.5;
+    const halfHeight = this.aspect / 2;
+    this.points.updateWorldMatrix(true, false);
     let left = Infinity;
     let top = Infinity;
     let right = -Infinity;
@@ -248,7 +241,7 @@ export class EnterParticles {
       [-1, 1],
     ]) {
       const corner = new THREE.Vector3(sx * halfWidth, sy * halfHeight, 0);
-      this.hit.localToWorld(corner);
+      this.points.localToWorld(corner);
       corner.project(camera);
       const x = (corner.x * 0.5 + 0.5) * width;
       const y = (-corner.y * 0.5 + 0.5) * height;
@@ -257,7 +250,12 @@ export class EnterParticles {
       top = Math.min(top, y);
       bottom = Math.max(bottom, y);
     }
-    return { left, top, right, bottom };
+    return {
+      left: left - CURSOR_PADDING,
+      top: top - CURSOR_PADDING,
+      right: right + CURSOR_PADDING,
+      bottom: bottom + CURSOR_PADDING,
+    };
   }
 
   dispose() {
