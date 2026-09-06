@@ -336,7 +336,6 @@ export function mountFocus(root, { captureBackground } = {}) {
     page.style.setProperty("--progress",String(Math.min(seconds/(preview?75:4500),1)));
     $(".connection-label").textContent=started?(session.running?"CONNECTED":"ON HOLD"):"STANDBY";
     $(".session-label").textContent=started?(session.running?"专注进行中":"计时已暂停") : "等待接入";
-    $(".phase-code").textContent=PHASES[phase].name.toUpperCase();
     if (!started) $(".event-readout").textContent="AWAITING INPUT_";
     root.querySelectorAll("[data-step]").forEach((step,i) => {step.dataset.active=String(i===phase); step.dataset.complete=String(i<phase);});
     play.setAttribute("aria-label",session.running?"暂停计时":started?"继续计时":"开始计时"); play.setAttribute("aria-pressed",String(session.running));

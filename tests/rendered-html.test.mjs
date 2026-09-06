@@ -41,6 +41,11 @@ test('Pages receives the same markup, runtime and styles as React',async()=>{
   assert.equal(staticCss,css.replaceAll("url('/fonts/","url('./fonts/"));
   assert.ok(staticEngine.startsWith(engine));
 });
+test('the pre-timer interface has no circular attention reticle',()=>{
+  assert.equal(focusMarkup.includes('class="reticle"'),false);
+  assert.equal(focusMarkup.includes('ATTENTION CHANNEL'),false);
+  assert.equal(focusMarkup.includes('SIGNAL /'),false);
+});
 test('built page serves the complete focus interface',async()=>{
   const {default:worker}=await import('../dist/server/index.js');
   const response=await worker.fetch(new Request('http://localhost/',{headers:{accept:'text/html'}}),{ASSETS:{fetch:async()=>new Response('Not found',{status:404})}},{waitUntil(){},passThroughOnException(){}});
