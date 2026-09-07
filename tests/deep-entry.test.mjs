@@ -102,7 +102,7 @@ test('no events before start; preview DEEP uses background capture, not a clock-
   assert.equal(h.get('video').pauses,0);assert.equal(h.get('audio').pauses,0);
   h.advance(1520);
   assert.equal(h.canvas(),undefined);assert.equal(h.page.dataset.deepEntry,undefined);
-  assert.equal(h.get('.screen-reminder').textContent,'DEEP / 已进入深层');
+  assert.equal(h.get('.screen-reminder').textContent,'DEEP / DEPTH CHANNEL ENGAGED');
   h.advance(3800);assert.equal(h.get('.screen-reminder').textContent,'');
 });
 
@@ -130,7 +130,7 @@ test('normal mode triggers only at 25 minutes; later phases do not replay DEEP',
 test('reduced motion uses no capture and still fades and clears the subtitle',t=>{
   const h=harness(t,{reduced:true});h.get('.play-button').click();h.advance(25000);
   assert.equal(h.page.dataset.deepEntry,'entering');assert.equal(h.canvas(),undefined);
-  h.advance(1520);assert.equal(h.get('.screen-reminder').textContent,'DEEP / 已进入深层');
+  h.advance(1520);assert.equal(h.get('.screen-reminder').textContent,'DEEP / DEPTH CHANNEL ENGAGED');
   h.advance(3800);assert.equal(h.get('.screen-reminder').textContent,'');
 });
 

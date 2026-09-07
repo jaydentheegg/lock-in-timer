@@ -49,12 +49,20 @@ test('the circular attention reticle is present but gated to a started timer',as
   assert.ok(css.includes('.reticle{')&&css.includes('opacity:0'));
   assert.ok(css.includes('.focus-page[data-started=true] .reticle{opacity:.63}'));
 });
+test('visible interface copy is English and controls use layered icon geometry',async()=>{
+  const engine=await readFile(new URL('../lib/focus-engine.js',import.meta.url),'utf8');
+  assert.equal(/\p{Script=Han}/u.test(focusMarkup),false);
+  assert.equal(/\p{Script=Han}/u.test(engine),false);
+  assert.ok(focusMarkup.includes('class="icon-detail"'));
+  assert.ok(focusMarkup.includes('class="icon-accent"'));
+  assert.ok(focusMarkup.includes('aria-label="Start timer"'));
+});
 test('built page serves the complete focus interface',async()=>{
   const {default:worker}=await import('../dist/server/index.js');
   const response=await worker.fetch(new Request('http://localhost/',{headers:{accept:'text/html'}}),{ASSETS:{fetch:async()=>new Response('Not found',{status:404})}},{waitUntil(){},passThroughOnException(){}});
   assert.equal(response.status,200);
   const html=await response.text();
-  assert.ok(html.includes('aria-label="开始计时"'));
-  assert.ok(html.includes('aria-label="重置计时"'));
+  assert.ok(html.includes('aria-label="Start timer"'));
+  assert.ok(html.includes('aria-label="Reset timer"'));
   assert.ok(html.includes('study-poster.jpg'));
 });

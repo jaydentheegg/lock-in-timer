@@ -7,16 +7,16 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 export const metadata: Metadata = {
     title: "Timer",
-    description: "按下播放后开始正计时、高清画面、环境音与实时提醒。",
+    description: "An immersive focus timer with ambient audio and live system broadcasts.",
     icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
     openGraph: {
       title: "Timer",
-      description: "别让自己昏过去。",
+      description: "Do not fade out.",
       type: "website",
     },
-    twitter: { card: "summary", title: "Timer", description: "别让自己昏过去。" },
+    twitter: { card: "summary", title: "Timer", description: "Do not fade out." },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="zh-CN"><body className={`${geistSans.variable} ${geistMono.variable}`}>{children}</body></html>;
+  return <html lang="en"><body className={`${geistSans.variable} ${geistMono.variable}`}>{children}</body></html>;
 }
