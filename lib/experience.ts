@@ -17,23 +17,23 @@ export type Milestone = {
 };
 
 export const MILESTONES: Milestone[] = [
-  { seconds: 600, previewSeconds: 10, phase: "trace", code: "TRACE", message: "注意力链路稳定" },
-  { seconds: 1500, previewSeconds: 25, phase: "deep", code: "DEEP", message: "外部信号正在衰减" },
-  { seconds: 2700, previewSeconds: 45, phase: "null", code: "NULL", message: "只剩任务与呼吸" },
-  { seconds: 4500, previewSeconds: 75, phase: "lock", code: "LOCK", message: "本次连接已不可逆" },
+  { seconds: 600, previewSeconds: 10, phase: "trace", code: "TRACE", message: "ATTENTION LINK STABLE" },
+  { seconds: 1500, previewSeconds: 25, phase: "deep", code: "DEEP", message: "EXTERNAL SIGNALS FADING" },
+  { seconds: 2700, previewSeconds: 45, phase: "null", code: "NULL", message: "ONLY TASK AND BREATH REMAIN" },
+  { seconds: 4500, previewSeconds: 75, phase: "lock", code: "LOCK", message: "CONNECTION LOCKED. KEEP MOVING." },
 ];
 
 export const BROADCASTS = [
-  "注意力信号已捕获。",
-  "外部噪声正在失去权限。",
-  "保持当前输入。",
-  "任务通道稳定。",
-  "不要回应无关信号。",
-  "认知负载：可控。",
-  "继续。不要解释。",
-  "别让自己昏过去。",
-  "未登记频道：有人比你更早到达这里。",
-  "归档损坏：你曾经完成过这一段。",
+  "ATTENTION SIGNAL ACQUIRED.",
+  "EXTERNAL NOISE IS LOSING ACCESS.",
+  "MAINTAIN CURRENT INPUT.",
+  "TASK CHANNEL STABLE.",
+  "IGNORE IRRELEVANT SIGNALS.",
+  "COGNITIVE LOAD: CONTROLLED.",
+  "CONTINUE. DO NOT EXPLAIN.",
+  "DO NOT FADE OUT.",
+  "UNREGISTERED CHANNEL: SOMEONE ARRIVED BEFORE YOU.",
+  "ARCHIVE CORRUPTED: YOU HAVE COMPLETED THIS BEFORE.",
 ];
 
 export const ANOMALIES: Array<{ kind: AnomalyKind; label: string }> = [

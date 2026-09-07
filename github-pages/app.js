@@ -1,9 +1,9 @@
 export const PHASES = [
-  {name:"link",seconds:0,preview:0,message:"注意力信号已捕获"},
-  {name:"trace",seconds:600,preview:10,message:"注意力链路稳定"},
-  {name:"deep",seconds:1500,preview:25,message:"外部信号正在衰减"},
-  {name:"null",seconds:2700,preview:45,message:"只剩任务与呼吸"},
-  {name:"lock",seconds:4500,preview:75,message:"保持连接。继续向前。"},
+  {name:"link",seconds:0,preview:0,message:"ATTENTION SIGNAL ACQUIRED"},
+  {name:"trace",seconds:600,preview:10,message:"ATTENTION LINK STABLE"},
+  {name:"deep",seconds:1500,preview:25,message:"EXTERNAL SIGNALS FADING"},
+  {name:"null",seconds:2700,preview:45,message:"ONLY TASK AND BREATH REMAIN"},
+  {name:"lock",seconds:4500,preview:75,message:"CONNECTION LOCKED. KEEP MOVING."},
 ];
 export function phaseAt(seconds, preview = false) {
   return PHASES.findLastIndex(phase => seconds >= phase[preview ? "preview" : "seconds"]);
@@ -196,7 +196,7 @@ export function mountFocus(root, { captureBackground } = {}) {
   const listeners = [];
   let started = false, soundOn = true, disposed = false, phase = 0, lastSeconds = -1, raf = 0;
   let deck = [], burstSequence = 0;
-  const broadcasts = ["别让自己昏过去。","保持当前输入。","不要回应无关信号。","继续。不要解释。","外部噪声正在失去权限。","任务通道稳定。","注意力信号已捕获。","认知负载：可控。","未登记频道：有人比你更早到达这里。","归档损坏：你曾经完成过这一段。"];
+  const broadcasts = ["DO NOT FADE OUT.","MAINTAIN CURRENT INPUT.","IGNORE IRRELEVANT SIGNALS.","CONTINUE. DO NOT EXPLAIN.","EXTERNAL NOISE IS LOSING ACCESS.","TASK CHANNEL STABLE.","ATTENTION SIGNAL ACQUIRED.","COGNITIVE LOAD: CONTROLLED.","UNREGISTERED CHANNEL: SOMEONE ARRIVED BEFORE YOU.","ARCHIVE CORRUPTED: YOU HAVE COMPLETED THIS BEFORE."];
   const random = (min,max) => min + Math.random() * (max - min);
   const on = (target,event,handler) => { target.addEventListener(event,handler); listeners.push(() => target.removeEventListener(event,handler)); };
   function cancel(name) { clearTimeout(timers.get(name)); timers.delete(name); }
@@ -204,7 +204,7 @@ export function mountFocus(root, { captureBackground } = {}) {
   function safePlay(media) {
     media.play()?.catch(() => {
       if (disposed || !started) return;
-      $(".media-message").textContent = media === audio ? "声音未能播放，点声音图标重试。" : "画面暂时无法播放，稍后重新开始可重试。";
+      $(".media-message").textContent = media === audio ? "AUDIO LINK FAILED. TAP THE AUDIO CONTROL TO RETRY." : "VIDEO LINK FAILED. RESTART THE SESSION TO RETRY.";
       if (media === audio) { soundOn = false; render(); }
     });
   }
@@ -303,7 +303,7 @@ export function mountFocus(root, { captureBackground } = {}) {
       ["broadcast", "burst", "broadcastEnd", "burstEnd", "milestoneEnd", "milestoneBurst"].forEach(cancel);
       clearBurst();
       deepEntry.start(() => {
-        reminder.textContent = "DEEP / 已进入深层";
+        reminder.textContent = "DEEP / DEPTH CHANNEL ENGAGED";
         reminder.dataset.text = reminder.textContent;
         reminder.setAttribute("aria-label", reminder.textContent);
         reminder.style.removeProperty("font-size");
@@ -327,7 +327,7 @@ export function mountFocus(root, { captureBackground } = {}) {
     if (seconds !== lastSeconds) {
       const value = `${String(Math.floor(seconds/60)).padStart(2,"0")}:${String(seconds%60).padStart(2,"0")}`;
       clock.textContent=value; clock.dataset.clock=value; clock.dateTime=`PT${seconds}S`;
-      clock.setAttribute("aria-label",`${Math.floor(seconds/60)} 分 ${seconds%60} 秒`);
+      clock.setAttribute("aria-label",`${Math.floor(seconds/60)} minutes ${seconds%60} seconds`);
       $(".coordinate").textContent="REC / "+String(seconds).padStart(4,"0");
       lastSeconds=seconds;
     }
@@ -335,12 +335,12 @@ export function mountFocus(root, { captureBackground } = {}) {
     page.dataset.started=String(started); page.dataset.running=String(session.running); page.dataset.sound=soundOn?"on":"off";
     page.style.setProperty("--progress",String(Math.min(seconds/(preview?75:4500),1)));
     $(".connection-label").textContent=started?(session.running?"CONNECTED":"ON HOLD"):"STANDBY";
-    $(".session-label").textContent=started?(session.running?"专注进行中":"计时已暂停") : "等待接入";
+    $(".session-label").textContent=started?(session.running?"FOCUS ACTIVE":"TIMER PAUSED") : "AWAITING LINK";
     $(".phase-code").textContent=PHASES[phase].name.toUpperCase();
     if (!started) $(".event-readout").textContent="AWAITING INPUT_";
     root.querySelectorAll("[data-step]").forEach((step,i) => {step.dataset.active=String(i===phase); step.dataset.complete=String(i<phase);});
-    play.setAttribute("aria-label",session.running?"暂停计时":started?"继续计时":"开始计时"); play.setAttribute("aria-pressed",String(session.running));
-    sound.setAttribute("aria-label",soundOn?"关闭声音":"打开声音"); sound.setAttribute("aria-pressed",String(soundOn)); resetButton.disabled=!started;
+    play.setAttribute("aria-label",session.running?"Pause timer":started?"Resume timer":"Start timer"); play.setAttribute("aria-pressed",String(session.running));
+    sound.setAttribute("aria-label",soundOn?"Mute audio":"Unmute audio"); sound.setAttribute("aria-pressed",String(soundOn)); resetButton.disabled=!started;
   }
   function togglePlay() {
     if (!started) { started=true; session.resume(); safePlay(video); if(soundOn)safePlay(audio); scheduleBroadcast(true); scheduleBurst(); }
@@ -356,10 +356,10 @@ export function mountFocus(root, { captureBackground } = {}) {
   }
   async function fullscreen() {
     try { if(document.fullscreenElement)await document.exitFullscreen();else await page.requestFullscreen(); }
-    catch { $(".media-message").textContent="当前浏览器不支持全屏，可以横屏观看。"; }
+    catch { $(".media-message").textContent="FULLSCREEN UNAVAILABLE. ROTATE YOUR DEVICE FOR LANDSCAPE MODE."; }
   }
   on(play,"click",togglePlay); on(sound,"click",toggleSound); on(resetButton,"click",reset); on($(".fullscreen-button"),"click",fullscreen);
-  on(document,"fullscreenchange",() => $(".fullscreen-button").setAttribute("aria-label",document.fullscreenElement?"退出全屏":"进入全屏"));
+  on(document,"fullscreenchange",() => $(".fullscreen-button").setAttribute("aria-label",document.fullscreenElement?"Exit fullscreen":"Enter fullscreen"));
   on(document,"keydown",event => {
     if(event.repeat||event.metaKey||event.ctrlKey||event.altKey||event.target.closest?.("input,textarea,select,[contenteditable=true]"))return;
     if(event.code==="Space") {if(event.target.closest?.("button"))return; event.preventDefault();togglePlay();}
