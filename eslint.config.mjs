@@ -36,6 +36,10 @@ const eslintConfig = defineConfig([
       },
     },
   },
+  {
+    files: ["extension/**"],
+    languageOptions: { globals: globals.webextensions },
+  },
 ]);
 
 export default eslintConfig;

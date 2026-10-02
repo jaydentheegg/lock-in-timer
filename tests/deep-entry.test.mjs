@@ -42,7 +42,7 @@ function harness(t, {reduced = false, preview = true, noCanvas = false, gl = fal
   const elements = new Map(), steps = Array.from({length:5},()=>new Element());
   const get = key => {if(!elements.has(key))elements.set(key,new Element());return elements.get(key);};
   const page = get('.focus-page');
-  const doc = new Element(); doc.hidden = false;
+  const doc = new Element(); doc.hidden = false; doc.documentElement = new Element();
   doc.querySelector = get;
   doc.querySelectorAll = selector => selector === '[data-step]' ? steps : [];
   const cards = gl ? [new Element(),new Element()] : [];
@@ -201,4 +201,21 @@ test('keyboard pause and sound remain independent during the transition',t=>{
 test('the WebGL camera lock follows session presence, not pause state',async()=>{
   const scene=await readFile(new URL('../site/src/gl/scene.js',import.meta.url),'utf8');
   assert.ok(scene.includes('this.lockTarget = this.page.dataset.started === "true" ? 1 : 0;'));
+});
+
+test('the noise filter label follows the extension, and reset is what releases it',t=>{
+  const h=harness(t),html=h.doc.documentElement,label=h.get('.filter-label'),reset=h.get('.reset-button');
+  let releases=0;h.page.addEventListener('focusreset',()=>releases++);
+  assert.equal(h.page.dataset.filter,'offline');assert.equal(label.textContent,'NOISE FILTER / OFFLINE');assert.equal(reset.disabled,true);
+  html.dataset.noiseFilter='armed';h.advance(200);
+  assert.equal(label.textContent,'NOISE FILTER / ARMED');assert.equal(reset.disabled,true);
+  h.get('.play-button').click();html.dataset.noiseFilter='engaged';h.advance(200);
+  assert.equal(label.textContent,'NOISE FILTER / ENGAGED');
+  h.get('.play-button').click();h.advance(200);
+  assert.equal(h.page.dataset.running,'false');assert.equal(label.textContent,'NOISE FILTER / ENGAGED');assert.equal(releases,0);
+  reset.click();assert.equal(releases,1);assert.equal(h.page.dataset.started,'false');
+  // A reload or a second tab: no session here, but the filter is still on.
+  assert.equal(label.textContent,'NOISE FILTER / HELD');assert.equal(reset.disabled,false);
+  reset.click();assert.equal(releases,2);
+  html.dataset.noiseFilter='armed';h.advance(200);assert.equal(reset.disabled,true);
 });

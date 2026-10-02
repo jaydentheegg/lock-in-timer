@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Lock-In Noise Filter",
+  "version": "1.0.0",
+  "description": "Blocks social media, video and game sites, and closes those apps on macOS, while a Lock-In Timer session runs.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAr9V7H4ce2fqW7TG1e0G4eXOrZIPPaRMM7LCzmEKagpn2VoyKCr2Oj6h3h3WPyDpktr/qU0jeTMlTaQk7a1ppsIbtiNZ9LFQqUQ98MgbfMSBma1mMnbFJ4DlQFU1Rasv2gD2/AbrYLIE2+d/wAR9a9rJ59FFYm9kbfJPLgpip4iB/V0DuCVMmJPitAwQbvQa+qS+3d6/M89yPelidLTUAGno7F2tQughStNIpJIDyZcqb+xsWUQKVIhHj84adcwloUPjBnCWDHM+QYJilbMybpNt4RUUkP5LXsEWB5ZQykckMVJOavYI5QSD4039WPuk/o0ytaFbeqEeUF05/Qn4KXwIDAQAB",
+  "minimum_chrome_version": "120",
+  "background": { "service_worker": "background.js", "type": "module" },
+  "permissions": ["declarativeNetRequest", "storage", "alarms", "nativeMessaging"],
+  "host_permissions": ["<all_urls>"],
+  "content_scripts": [
+    {
+      "matches": ["https://jaydentheegg.github.io/lock-in-timer/*", "http://localhost/*", "http://127.0.0.1/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [{ "resources": ["blocked.html"], "matches": ["<all_urls>"] }],
+  "action": { "default_title": "Lock-In Noise Filter", "default_popup": "popup.html" },
+  "incognito": "spanning"
+}
