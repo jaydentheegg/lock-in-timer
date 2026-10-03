@@ -1,0 +1,24 @@
+:root{color-scheme:dark;--amber:#f4b65c;--red:#ea4d32;--ink:#edddc9;--muted:#ac9276;--line:rgba(238,180,100,.19);font-family:"SF Mono",Menlo,"PingFang SC",monospace}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:#000;color:var(--ink)}
+.eyebrow{display:flex;align-items:center;gap:10px;margin:0;font-size:12px;letter-spacing:.19em;color:var(--red)}
+.eyebrow i{width:6px;height:6px;background:currentColor;box-shadow:0 0 12px currentColor}
+.released .eyebrow{color:var(--amber)}
+code{font:inherit;color:var(--amber)}
+
+/* Block page */
+.blocked{min-height:100vh;display:grid;place-items:center;padding:24px}
+.blocked main{width:min(560px,100%);border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:40px 0}
+.blocked h1{margin:22px 0 18px;font-size:clamp(28px,6vw,48px);font-weight:500;letter-spacing:.04em;overflow-wrap:anywhere}
+.blocked p{margin:0 0 10px;line-height:1.7}
+.blocked .meta{margin-top:26px;font-size:12px;letter-spacing:.06em;color:var(--muted)}
+.blocked a{display:inline-block;margin-top:20px;color:var(--amber)}
+
+/* Popup */
+.popup{width:300px;padding:18px 18px 16px}
+.popup dl{margin:16px 0 0;display:grid;grid-template-columns:auto 1fr;gap:10px 14px;font-size:12px}
+.popup dt{color:var(--muted)}
+.popup dd{margin:0;line-height:1.5}
+.popup .warn{color:var(--red)}
+.popup .hint{margin:16px 0 0;padding-top:12px;border-top:1px solid var(--line);font-size:11px;line-height:1.6;color:var(--muted)}
