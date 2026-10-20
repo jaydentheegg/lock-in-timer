@@ -26,7 +26,7 @@ test('the extension manifest wires the timer, the block page and a fixed ID',asy
   assert.equal(manifest.manifest_version,3);
   assert.ok(manifest.content_scripts[0].matches.includes('https://jaydentheegg.github.io/lock-in-timer/*'));
   assert.ok(manifest.web_accessible_resources[0].resources.includes('blocked.html'));
-  for(const file of [manifest.background.service_worker,...manifest.content_scripts[0].js,'blocked.html','blocked.js','popup.html','popup.js','ui.css'])
+  for(const file of [manifest.background.service_worker,...manifest.content_scripts[0].js,'blocked.html','blocked.js','popup.html','popup.js','ui.css',...Object.values(manifest.icons),...Object.values(manifest.action.default_icon)])
     await stat(new URL('../extension/'+file,import.meta.url));
   // install.mjs grants the native host to exactly this ID.
   assert.equal(extensionId(manifest.key),'gkejpilphamlmhcdliammmlcpnbfkmlp');
